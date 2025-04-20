@@ -22,7 +22,7 @@ SugarBox is a chrome extension designed for managing saves from SugarCube games.
 
 Each game/char/save has their own UUID. When you log into one account, everything is uploaded and tied to that account.
 
-If you log in with another account, the extension will attempt to upload data that has already been uploaded, causing conflicts with older versions.
+If you log in with another account, the extension will attempt to upload data that has already been uploaded, causing conflicts with older versions. It should not affect anything on the first account, but will cause errors for the second one.
 
 If you **really** need to, you can log out from one account, delete the local database and then log into the new one.
 
@@ -31,7 +31,7 @@ If you **really** need to, you can log out from one account, delete the local da
 > [!warning]
 > This extension does not support firefox based browsers.
 
-As a chromium hater myself i am also sad about this, but there's not much i can do without rewriting a ton. First of all, there are a lot more security features and i am not quite ready to fight with firefox to allow my extension to communicate save data between a popup and a content script. Secondly, firefox popups try to close on the slightest click, so for example DB import from file will not work, since by the time you've selected the file, the popup is already closed.
+As a chromium hater myself i am also sad about this, but there's not much i can do without rewriting a ton. First of all, there are a lot more security features and i am not quite ready to fight with firefox to allow my extension to communicate save data between a popup and a content script. Secondly, firefox popups try to close on the slightest click, so, for example, DB import from file will not work, since by the time you've selected the file, the popup is already gone.
 
 ## Installation
 
@@ -79,7 +79,7 @@ services:
 
 1. **Node.js**: Ensure you have Node.js installed. You can download it from [Node.js official website](https://nodejs.org/).
 2. **pnpm**: Install pnpm, the package manager used in this project. Run the following command to install it globally: `npm install -g pnpm`
-3. Clone the repo `git clone https://github.com/arairon/sugarcube`
+3. Clone the repo `git clone https://github.com/arairon/sugarbox`
 
 ### Extension
 
@@ -148,7 +148,7 @@ If the current browser tab is not registered as a game, you can manually select 
 
 ![UtilsPageImage](/docs/img/utilspage.png)
 
-In the utils page (the wrench in the bottom right) you can see how much space is currently taken and how much is available, which is most likely equal to the free space on your drive.
+In the utililities page (the wrench in the bottom right) you can see how much space is currently taken and how much is available, which is most likely equal to the free space on your drive.
 
 Here you can check the integrity of the current database. Back it up to a file or restore from one, or just delete it as a whole.
 
