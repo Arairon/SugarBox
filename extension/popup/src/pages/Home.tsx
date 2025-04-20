@@ -31,7 +31,6 @@ function WelcomePage() {
         <a className="w-full text-center block">SugarCube Save Manager by Arairon</a>
       </p>
       <p className="text-pretty text-base px-4 py-2 border-1 border-cyan-600 rounded-lg bg-slate-900">
-        {/* href="https://git.arai.icu/arairon/twine-saves" */}
         <Dialog>
         You can find a guide <DialogTrigger asChild><a className="underline clickable">here</a></DialogTrigger><br/>
         <DialogContent>
@@ -40,7 +39,7 @@ function WelcomePage() {
           </DialogHeader>
           <ScrollArea className="max-h-50">
           <ol className="text-pretty text-base list-decimal list-inside">
-            <li>Make sure the current browser tab is a twine game</li>
+            <li>Make sure the current browser tab is a SugarCube game</li>
             <li>Click on "No game found" in the top-left corner</li>
             <li>Register a new game / select an existing one</li>
             <li>Register current tab as a suitable path for the game</li>
@@ -52,7 +51,9 @@ function WelcomePage() {
           </ScrollArea>
         </DialogContent>
         </Dialog>
-        and a more detailed one <a className="underline clickable" onClick={()=>{toast("or not...", {description: "I haven't made a public one yet :)"})}}>in the repo</a>.
+        and a more detailed one <a className="underline clickable" onClick={()=>{
+          chrome.tabs.create({url: "https://github.com/arairon/sugarbox"})
+        }}>in the repo</a>.
       </p>
       <p className="text-sm text-right self-stretch">
         Feel free to contact me<br/>

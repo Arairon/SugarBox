@@ -2,6 +2,10 @@
 
 ## Overview
 
+[![server:release](https://github.com/Arairon/SugarBox/actions/workflows/server-container-release.yml/badge.svg)](https://github.com/Arairon/SugarBox/actions/workflows/server-container-release.yml)
+[![server:main](https://github.com/Arairon/SugarBox/actions/workflows/server-container-main.yml/badge.svg)](https://github.com/Arairon/SugarBox/actions/workflows/server-container-main.yml)
+[![server:dev](https://github.com/Arairon/SugarBox/actions/workflows/server-container-dev.yml/badge.svg)](https://github.com/Arairon/SugarBox/actions/workflows/server-container-dev.yml)
+
 SugarBox is a chrome extension designed for managing saves from SugarCube games. This tool allows you to have all your save files in one convenient location with a single ui. It also offers synchronization to a cloud server, which you can host yourself (or use the default one for free)
 
 > [!note]
@@ -51,7 +55,7 @@ If you choose to run your own server, you can do so with docker
 ```yaml
 services:
   sugarbox:
-    image: ... # will be updated when i set up github actions
+    image: ghcr.io/arairon/sugarbox:latest
     restart: unless-stopped
     container_name: sugarbox-server
     ports:

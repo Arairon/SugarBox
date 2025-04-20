@@ -35,7 +35,7 @@ function isObject(obj) {
 
 function sendToExt(data) {
   data.sender = "page";
-  window.dispatchEvent(new CustomEvent("TwineSavesToExt", { detail: data }));
+  window.dispatchEvent(new CustomEvent("SugarBoxToExt", { detail: data }));
 }
 
 function get_version() {
@@ -74,11 +74,11 @@ function init() {
     return;
   }
   SugarCubeObject = SugarCube;
-  window.addEventListener("TwineSavesToPage", incomingHandler);
-  console.log("Connected to twine saves");
+  window.addEventListener("SugarBoxToPage", incomingHandler);
+  console.log("Connected to SugarBox");
   if (SugarCube.Save.onSave.size) {
     console.warn(
-      "This game uses onSave hooks which must be cleared to use twine saves manager. This may cause problems with default saves."
+      "This game uses onSave hooks which must be cleared to use SugarBox. This may cause problems with default saves."
     );
     SugarCube.Save.onSave.clear();
   }

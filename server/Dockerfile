@@ -1,4 +1,4 @@
-FROM node:23-alpine AS build
+FROM node:slim AS build
 
 WORKDIR /app
 
@@ -18,9 +18,7 @@ RUN npm run build
 
 ENV PORT=3000
 ENV LOG_LEVEL="info"
-ENV DATABASE_URL="file:/app/db/twine-saves.db"
-#ENV JWT_SECRET="pleaseuseanactualsecret" # Add empty handling in app
-#ENV LOG_LEVEL="debug"
+ENV DATABASE_URL="file:/app/db/sugarbox.sqlite"
 
 ENTRYPOINT ["/usr/bin/env"]
 CMD ["sh", "/app/entrypoint.sh"]
