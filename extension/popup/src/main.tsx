@@ -4,9 +4,11 @@ import { BrowserRouter } from 'react-router'
 import './index.css'
 import {App} from './App.tsx'
 
+const root = location.pathname
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter basename="/popup/dist/index.html">
+    <BrowserRouter basename={root}>
       <App/>
     </BrowserRouter>
   </StrictMode>,
