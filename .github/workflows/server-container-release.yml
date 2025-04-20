@@ -1,4 +1,4 @@
-name: Build server container for release
+name: Build server:release
 
 on:
   push:

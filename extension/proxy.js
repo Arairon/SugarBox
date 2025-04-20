@@ -9,11 +9,11 @@ function popupToPageHandler(msg, sender, sendResponse) {
     data: msg,
   };
   pendingRequests[reqId++] = sendResponse;
-  window.dispatchEvent(new CustomEvent("TwineSavesToPage", { detail: data }));
+  window.dispatchEvent(new CustomEvent("SugarBoxToPage", { detail: data }));
 }
 chrome.runtime.onMessage.addListener(popupToPageHandler);
 
-window.addEventListener("TwineSavesToExt", (ev) => {
+window.addEventListener("SugarBoxToExt", (ev) => {
   const data = ev.detail;
   if (enabled) {
     if (data?.disable) {

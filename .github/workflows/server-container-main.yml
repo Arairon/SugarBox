@@ -1,4 +1,4 @@
-name: Build server container on main
+name: Build server:main
 
 on:
   push:
