@@ -11,20 +11,19 @@ datasource db {
 }
 
 model User {
-  id              Int            @id @default(autoincrement())
-  username        String         @unique
-  displayname     String
-  password        String
-  email           String         @unique @default("")
-  emailConfirmed  Boolean        @default(false)
-  role            user_role      @default(user)
-  tokenCount      Int            @default(0)
-  firstValidToken Int            @default(0)
-  saves           Save[]
-  chars           Char[]
-  games           Game[]
-  sessionTokens   SessionToken[]
-  sessions        Session[]
+  id             Int            @id @default(autoincrement())
+  username       String         @unique
+  displayname    String
+  password       String
+  email          String         @unique @default("")
+  emailConfirmed Boolean        @default(false)
+  role           user_role      @default(user)
+  createdAt      DateTime       @default(now())
+  saves          Save[]
+  chars          Char[]
+  games          Game[]
+  sessionTokens  SessionToken[]
+  sessions       Session[]
 }
 
 model SessionToken {
