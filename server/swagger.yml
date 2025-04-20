@@ -1,0 +1,1303 @@
+openapi: "3.0.3"
+info:
+  title: SugarBox API by arairon
+  version: 0.1.0
+  description: A simple storage for SugarCube saves.
+  license:
+    name: GPL-3.0
+    url: https://opensource.org/license/gpl-3-0
+  contact:
+    name: arai.icu
+    url: https://arai.icu
+    email: arai@arai.icu
+
+servers:
+  - url: https://sugarbox.arai.icu/api
+  #- url: http://127.0.0.1:3000/api
+
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user
+      description: Registers a new user with a username, email, and password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserRegisterSchema"
+      responses:
+        "201":
+          description: Successfully registered user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/UserReturnSchema"
+                      session:
+                        type: object
+        "400":
+          description: Validation error or username/email already taken
+        "500":
+          description: Internal server error
+
+  /auth/login:
+    post:
+      summary: Log in a user
+      description: Authenticates a user with their username/email and password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserLoginSchema"
+      responses:
+        "200":
+          description: Successfully logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/UserReturnSchema"
+                      session:
+                        type: object
+        "400":
+          description: Invalid credentials or validation error
+        "404":
+          description: User not found
+        "500":
+          description: Internal server error
+
+  /auth/logout:
+    post:
+      summary: Log out a user
+      description: Logs out the currently authenticated user by invalidating their session.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+      responses:
+        "200":
+          description: Successfully logged out
+        "401":
+          description: Unauthorized or invalid token
+        "500":
+          description: Internal server error
+
+  /auth/refresh:
+    get:
+      summary: Refresh session token
+      description: Refreshes the access and refresh tokens for the current session.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer REFRESHTOKEN"
+      responses:
+        "200":
+          description: Successfully refreshed session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: "#/components/schemas/UserReturnSchema"
+                      session:
+                        type: object
+        "403":
+          description: Invalid or expired refresh token
+        "404":
+          description: User not found
+        "500":
+          description: Internal server error
+
+  /auth/self:
+    get:
+      summary: Get current user information
+      description: Retrieves information about the currently authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+      responses:
+        "200":
+          description: Successfully retrieved user information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserReturnSchema"
+        "401":
+          description: Unauthorized or invalid token
+        "404":
+          description: User not found
+        "500":
+          description: Internal server error
+
+  /auth:
+    get:
+      summary: Get user and role from token
+      description: Decodes the provided token to retrieve the user ID and role.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+      responses:
+        "200":
+          description: Successfully retrieved user and role
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: integer
+                  role:
+                    type: string
+        "401":
+          description: Unauthorized or invalid token
+  /user/session/{id}:
+    delete:
+      summary: Invalidate a session
+      description: Invalidates a specific session for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the session to invalidate.
+      responses:
+        "200":
+          description: Session invalidated successfully
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+  /user/sessions:
+    get:
+      summary: Get active sessions
+      description: Retrieves all active sessions for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+      responses:
+        "200":
+          description: Successfully retrieved active sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    active:
+                      type: boolean
+                    tokens:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          active:
+                            type: boolean
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+  /user/self:
+    patch:
+      summary: Update user information
+      description: Updates the authenticated user's account information, such as username, email, or password.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPatchSchema"
+      responses:
+        "200":
+          description: Successfully updated user information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  data:
+                    type: object
+        "400":
+          description: Validation error or username/email already taken
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+  /user/quota:
+    get:
+      summary: Get storage quota
+      description: Retrieves the authenticated user's storage quota and current usage.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+      responses:
+        "200":
+          description: Successfully retrieved storage quota
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      usage:
+                        type: integer
+                      quota:
+                        type: integer
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+  /games:
+    get:
+      summary: Get all games for the authenticated user
+      description: Retrieves all games owned by the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+      responses:
+        "200":
+          description: Successfully retrieved games
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GameSchema"
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+  /games/uuid/{gameId}:
+    get:
+      summary: Get a game by UUID
+      description: Retrieves a specific game by its UUID for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+        - in: path
+          name: gameId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the game to retrieve.
+      responses:
+        "200":
+          description: Successfully retrieved the game
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameSchema"
+        "400":
+          description: Invalid UUID
+        "404":
+          description: Game not found
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+    patch:
+      summary: Update a game by UUID
+      description: Updates a specific game by its UUID for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+        - in: path
+          name: gameId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the game to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GameUpdateSchema"
+      responses:
+        "200":
+          description: Successfully updated the game
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameSchema"
+        "400":
+          description: Invalid UUID or validation error
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+    delete:
+      summary: Delete a game by UUID
+      description: Deletes a specific game by its UUID for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+        - in: path
+          name: gameId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the game to delete.
+      responses:
+        "200":
+          description: Successfully deleted the game
+        "400":
+          description: Invalid UUID
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+  /games/new:
+    post:
+      summary: Create a new game
+      description: Creates a new game for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GameCreateSchema"
+      responses:
+        "200":
+          description: Successfully created a new game
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameSchema"
+        "400":
+          description: Validation error
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+  /chars:
+    get:
+      summary: Get all characters for the authenticated user
+      description: Retrieves all characters owned by the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+      responses:
+        "200":
+          description: Successfully retrieved characters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CharSchema"
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+  /chars/uuid/{charId}:
+    get:
+      summary: Get a character by UUID
+      description: Retrieves a specific character by its UUID for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+        - in: path
+          name: charId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the character to retrieve.
+      responses:
+        "200":
+          description: Successfully retrieved the character
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharSchema"
+        "400":
+          description: Invalid UUID
+        "404":
+          description: Character not found
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+    patch:
+      summary: Update a character by UUID
+      description: Updates a specific character by its UUID for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+        - in: path
+          name: charId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the character to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharUpdateSchema"
+      responses:
+        "200":
+          description: Successfully updated the character
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharSchema"
+        "400":
+          description: Invalid UUID or validation error
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+    delete:
+      summary: Delete a character by UUID
+      description: Deletes a specific character by its UUID for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+        - in: path
+          name: charId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the character to delete.
+      responses:
+        "200":
+          description: Successfully deleted the character
+        "400":
+          description: Invalid UUID
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+  /chars/new:
+    post:
+      summary: Create a new character
+      description: Creates a new character for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CharCreateSchema"
+      responses:
+        "200":
+          description: Successfully created a new character
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CharSchema"
+        "400":
+          description: Validation error
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+  /saves/new:
+    post:
+      summary: Create a new save
+      description: Creates a new save for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveCreateSchema"
+      responses:
+        "200":
+          description: Successfully created a new save
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveSchema"
+        "400":
+          description: Validation error
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+  /saves/uuid/{saveId}:
+    get:
+      summary: Get a save by UUID
+      description: Retrieves a specific save by its UUID for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+        - in: path
+          name: charId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the save to retrieve.
+      responses:
+        "200":
+          description: Successfully retrieved the save
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveSchema"
+        "400":
+          description: Invalid UUID
+        "404":
+          description: Character not found
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+    patch:
+      summary: Update a save by UUID
+      description: Updates a specific save by its UUID for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+        - in: path
+          name: saveId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the save to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveUpdateSchema"
+      responses:
+        "200":
+          description: Successfully updated the save
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaveSchema"
+        "400":
+          description: Invalid UUID or validation error
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+    delete:
+      summary: Delete a save by UUID
+      description: Deletes a specific save by its UUID for the authenticated user.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+        - in: path
+          name: saveId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The UUID of the save to delete.
+      responses:
+        "200":
+          description: Successfully deleted the save
+        "400":
+          description: Invalid UUID
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+  /sync/up:
+    post:
+      summary: Upload data for synchronization
+      description: Uploads games, characters, and saves for synchronization.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncUpSchema"
+      responses:
+        "200":
+          description: Successfully uploaded data for synchronization
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      errors:
+                        type: array
+                        items:
+                          type: string
+        "400":
+          description: Validation error
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+  /sync/down:
+    get:
+      summary: Download data for synchronization
+      description: Downloads games, characters, and saves updated since the cutoff point.
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: Bearer token in the format "Bearer ACCESSTOKEN"
+        - in: query
+          name: cutoffPoint
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: The cutoff point for retrieving updated data.
+        - in: query
+          name: games
+          required: false
+          schema:
+            type: boolean
+          description: Whether to include games in the synchronization.
+        - in: query
+          name: chars
+          required: false
+          schema:
+            type: boolean
+          description: Whether to include characters in the synchronization.
+        - in: query
+          name: saves
+          required: false
+          schema:
+            type: boolean
+          description: Whether to include saves in the synchronization.
+      responses:
+        "200":
+          description: Successfully downloaded data for synchronization
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      games:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/GameSchema"
+                      chars:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/CharSchema"
+                      saves:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/SaveSchema"
+        "400":
+          description: Validation error
+        "403":
+          description: Invalid authentication data
+        "500":
+          description: Internal server error
+
+components:
+  schemas:
+    UserRegisterSchema:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 3
+          maxLength: 256
+
+    UserLoginSchema:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+        password:
+          type: string
+          minLength: 3
+          maxLength: 256
+
+    UserReturnSchema:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        displayname:
+          type: string
+        email:
+          type: string
+        emailConfirmed:
+          type: boolean
+        role:
+          type: string
+    UserPatchSchema:
+      type: object
+      properties:
+        displayname:
+          type: string
+          description: Display name of the user.
+          minLength: 3
+          maxLength: 64
+        username:
+          type: string
+          description: Username of the user.
+          minLength: 3
+          maxLength: 32
+        email:
+          type: string
+          description: Email address of the user.
+          format: email
+        password:
+          type: string
+          description: Password of the user.
+          minLength: 3
+          maxLength: 256
+
+    UserSchema:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+        tokenCount:
+          type: integer
+        firstValidToken:
+          type: integer
+
+    SessionSchema:
+      type: object
+      properties:
+        id:
+          type: integer
+        active:
+          type: boolean
+        tokens:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              active:
+                type: boolean
+
+    QuotaSchema:
+      type: object
+      properties:
+        usage:
+          type: integer
+          description: Current storage usage in bytes.
+        quota:
+          type: integer
+          description: Maximum storage quota in bytes.
+
+    GamePathSchema:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: Optional name of the game path.
+        url:
+          type: string
+          maxLength: 256
+          description: URL of the game path.
+
+    GameSchema:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the game.
+        uuid:
+          type: string
+          format: uuid
+          description: UUID of the game.
+        name:
+          type: string
+          maxLength: 100
+          description: Name of the game.
+        shortname:
+          type: string
+          maxLength: 100
+          description: Short name of the game.
+        description:
+          type: string
+          maxLength: 256
+          description: Description of the game.
+        ownerId:
+          type: integer
+          description: ID of the owner of the game.
+        paths:
+          type: string
+          description: JSON string representing an array of game paths.
+        archived:
+          type: boolean
+          description: Whether the game is archived.
+        archivedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the game was archived.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the game was last updated.
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the game was created.
+
+    GameCreateSchema:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          description: UUID of the game.
+        name:
+          type: string
+          maxLength: 100
+          description: Name of the game.
+        shortname:
+          type: string
+          maxLength: 100
+          description: Short name of the game.
+        description:
+          type: string
+          maxLength: 256
+          description: Description of the game.
+        paths:
+          type: string
+          description: JSON string representing an array of game paths.
+
+    GameUpdateSchema:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          description: Name of the game.
+        shortname:
+          type: string
+          maxLength: 100
+          description: Short name of the game.
+        description:
+          type: string
+          maxLength: 256
+          description: Description of the game.
+        paths:
+          type: string
+          description: JSON string representing an array of game paths.
+    CharSchema:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the character.
+        uuid:
+          type: string
+          format: uuid
+          description: UUID of the character.
+        name:
+          type: string
+          maxLength: 100
+          description: Name of the character.
+        ownerId:
+          type: integer
+          description: ID of the owner of the character.
+        gameId:
+          type: string
+          format: uuid
+          description: UUID of the game associated with the character.
+        slots:
+          type: string
+          description: JSON string representing an array of UUIDs or empty strings.
+        archived:
+          type: boolean
+          description: Whether the character is archived.
+        archivedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the character was archived.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the character was last updated.
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the character was created.
+
+    CharCreateSchema:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          description: UUID of the character.
+        name:
+          type: string
+          maxLength: 100
+          description: Name of the character.
+        gameId:
+          type: string
+          format: uuid
+          description: UUID of the game associated with the character.
+        slots:
+          type: string
+          description: JSON string representing an array of UUIDs or empty strings.
+
+    CharUpdateSchema:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          description: Name of the character.
+        gameId:
+          type: string
+          format: uuid
+          description: UUID of the game associated with the character.
+        slots:
+          type: string
+          description: JSON string representing an array of UUIDs or empty strings.
+        archived:
+          type: boolean
+          description: Whether the character is archived.
+    SaveSchema:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the save.
+        uuid:
+          type: string
+          format: uuid
+          description: UUID of the save.
+        name:
+          type: string
+          maxLength: 100
+          description: Name of the save.
+        description:
+          type: string
+          maxLength: 256
+          description: Description of the save.
+        gameVersion:
+          type: string
+          description: Version of the game associated with the save.
+        gameId:
+          type: string
+          format: uuid
+          description: UUID of the game associated with the save.
+        charId:
+          type: string
+          format: uuid
+          description: UUID of the character associated with the save.
+        ownerId:
+          type: integer
+          description: ID of the owner of the save.
+        data:
+          type: string
+          maxLength: 1000000
+          description: Save data (up to 1MB).
+        size:
+          type: integer
+          description: Size of the save data in bytes.
+        hash:
+          type: string
+          maxLength: 256
+          description: Hash of the save data.
+        archived:
+          type: boolean
+          description: Whether the save is archived.
+        archivedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the save was archived.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the save was last updated.
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when the save was created.
+
+    SaveCreateSchema:
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          description: UUID of the save.
+        name:
+          type: string
+          maxLength: 100
+          description: Name of the save.
+        description:
+          type: string
+          maxLength: 256
+          description: Description of the save.
+        gameVersion:
+          type: string
+          description: Version of the game associated with the save.
+        gameId:
+          type: string
+          format: uuid
+          description: UUID of the game associated with the save.
+        charId:
+          type: string
+          format: uuid
+          description: UUID of the character associated with the save.
+        data:
+          type: string
+          maxLength: 1000000
+          description: Save data (up to 1MB).
+        size:
+          type: integer
+          description: Size of the save data in bytes.
+        hash:
+          type: string
+          maxLength: 256
+          description: Hash of the save data.
+
+    SaveUpdateSchema:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          description: Name of the save.
+        description:
+          type: string
+          maxLength: 256
+          description: Description of the save.
+        gameVersion:
+          type: string
+          description: Version of the game associated with the save.
+        gameId:
+          type: string
+          format: uuid
+          description: UUID of the game associated with the save.
+        charId:
+          type: string
+          format: uuid
+          description: UUID of the character associated with the save.
+        data:
+          type: string
+          maxLength: 1000000
+          description: Save data (optional, up to 1MB).
+        archived:
+          type: boolean
+          description: Whether the save is archived.
+    SyncUpSchema:
+      type: object
+      properties:
+        games:
+          type: array
+          items:
+            type: object
+          description: Array of games to upload.
+        chars:
+          type: array
+          items:
+            type: object
+          description: Array of characters to upload.
+        saves:
+          type: array
+          items:
+            type: object
+          description: Array of saves to upload.

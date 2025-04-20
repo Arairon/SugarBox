@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int            @id @default(autoincrement())
+  username        String         @unique
+  displayname     String
+  password        String
+  email           String         @unique @default("")
+  emailConfirmed  Boolean        @default(false)
+  role            user_role      @default(user)
+  tokenCount      Int            @default(0)
+  firstValidToken Int            @default(0)
+  saves           Save[]
+  chars           Char[]
+  games           Game[]
+  sessionTokens   SessionToken[]
+  sessions        Session[]
+}
+
+model SessionToken {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  active    Boolean  @default(true)
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId Int
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id          Int            @id @default(autoincrement())
+  createdAt   DateTime       @default(now())
+  active      Boolean        @default(true)
+  name        String         @default("Unnamed session")
+  description String         @default("No info")
+  userId      Int
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokens      SessionToken[]
+}
+
+enum user_role {
+  admin
+  user
+  limited
+}
+
+model Game {
+  id          Int      @id @default(autoincrement())
+  uuid        String   @unique
+  name        String
+  shortname   String   @default("")
+  description String   @default("")
+  paths       String   @default("[]")
+  archived    Boolean  @default(false)
+  archivedAt  DateTime
+  updatedAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId     Int
+  saves       Save[]
+  chars       Char[]
+}
+
+model Char {
+  id         Int      @id @default(autoincrement())
+  uuid       String   @unique
+  name       String
+  slots      String   @default("[]")
+  archived   Boolean  @default(false)
+  archivedAt DateTime
+  updatedAt  DateTime @default(now())
+  createdAt  DateTime @default(now())
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId    Int
+  game       Game?    @relation(fields: [gameId], references: [uuid], onDelete: SetNull)
+  gameId     String?
+  saves      Save[]
+}
+
+model Save {
+  id          Int      @id @default(autoincrement())
+  uuid        String   @unique
+  name        String?
+  gameVersion String?
+  description String?
+  archived    Boolean  @default(false)
+  archivedAt  DateTime
+  updatedAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  data        String
+  hash        String
+  size        Int
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId     Int
+  game        Game?    @relation(fields: [gameId], references: [uuid], onDelete: SetNull)
+  gameId      String?
+  char        Char?    @relation(fields: [charId], references: [uuid], onDelete: SetNull)
+  charId      String?
+}
