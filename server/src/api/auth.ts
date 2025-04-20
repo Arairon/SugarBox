@@ -218,15 +218,22 @@ app.post("/register", async (req, res) => {
       });
       return;
     }
-    const hashed_password = await argon2.hash(username + password);
+
     const user_data = {
       username,
       displayname,
       email,
-      password: hashed_password,
+      password: "temp", // impossible temporary value
       role: env.REGISTERED_USERS_LIMITED ? user_role.limited : user_role.user,
     };
     const user = await prisma.user.create({ data: user_data });
+    const hashed_password = await argon2.hash(
+      user.id + password + user.createdAt.toJSON()
+    );
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashed_password },
+    });
     const session = await createNewSession(user);
     log.info(`User ${username} registered`, {
       user: user.id,
@@ -353,7 +360,12 @@ app.post("/login", async (req, res) => {
       });
       return;
     }
-    if (!(await argon2.verify(user.password, user.username + password))) {
+    if (
+      !(await argon2.verify(
+        user.password,
+        user.id + password + user.createdAt.toJSON()
+      ))
+    ) {
       res.status(400).json({
         status: "error",
         message: "Invalid password",

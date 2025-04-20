@@ -26,8 +26,7 @@ export type UserObj = {
   id: number;
   role: user_role;
   email: string | null;
-  tokenCount: number;
-  firstValidToken: number;
+  createdAt: Date;
 };
 
 const UserPatchSchema = z.object({
@@ -226,7 +225,9 @@ app.patch("/self", verifyToken, async (req, res) => {
           id: auth.userId,
         },
         data: {
-          password: await argon2.hash(user.username + password),
+          password: await argon2.hash(
+            user.id + password + user.createdAt.toJSON()
+          ),
         },
       });
     }
