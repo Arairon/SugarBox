@@ -6,7 +6,7 @@
 [![server:main](https://github.com/Arairon/SugarBox/actions/workflows/server-container-main.yml/badge.svg)](https://github.com/Arairon/SugarBox/actions/workflows/server-container-main.yml)
 [![server:dev](https://github.com/Arairon/SugarBox/actions/workflows/server-container-dev.yml/badge.svg)](https://github.com/Arairon/SugarBox/actions/workflows/server-container-dev.yml)
 
-SugarBox is a chrome extension designed for managing saves from SugarCube games. This tool allows you to have all your save files in one convenient location with a single ui. It also offers synchronization to a cloud server, which you can host yourself (or use the default one for free)
+SugarBox is a chrome extension designed for managing saves from SugarCube games. This tool allows you to manage all your save files in one convenient location through a single UI. It also offers synchronization to a cloud server, which you can host yourself (or use the default one for free)
 
 > [!note]
 > The main purpose of this project was for me to tinker with react and typescript, so don't expect enterprise level code :)
@@ -22,7 +22,7 @@ SugarBox is a chrome extension designed for managing saves from SugarCube games.
 
 Each game/char/save has their own UUID. When you log into one account, everything is uploaded and tied to that account.
 
-If you log in with another account, the extension will try to upload already uploaded data to another account, which will conflict with the older versions.
+If you log in with another account, the extension will attempt to upload data that has already been uploaded, causing conflicts with older versions.
 
 If you **really** need to, you can log out from one account, delete the local database and then log into the new one.
 
@@ -138,7 +138,7 @@ The games list is quite basic. You can add as many games as you want and also ed
 ![GamePathsImage](/docs/img/gamepaths.png)
 
 You can assign as many 'paths' to a game as you want, as long as they don't conflict with other games.
-When you open the extension, it will select a game base on the current browser tab's url.
+When you open the extension, it will select a game based on the current browser tab's url.
 
 ![GameLaunchImage](/docs/img/gamelaunch.png)
 
