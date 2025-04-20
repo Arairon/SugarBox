@@ -51,7 +51,7 @@ If you choose to run your own server, you can do so with docker
 ```yaml
 services:
   sugarbox:
-    image: ... # will be updated when i set up github actions
+    image: ghcr.io/arairon/sugarbox:latest
     restart: unless-stopped
     container_name: sugarbox-server
     ports:
