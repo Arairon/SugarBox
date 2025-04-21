@@ -1,6 +1,5 @@
 import { Router } from "express";
 import swaggerui from "swagger-ui-express";
-import prisma from "./db.js";
 import { apispecs } from "./api-docs.js";
 //import log from "./logger.js";
 import games_api from "./api/games.js";
@@ -10,6 +9,7 @@ import sync_api from "./api/sync.js";
 import user_api from "./api/user.js";
 import admin_api from "./api/admin.js";
 import auth_api, { verifyToken } from "./api/auth.js";
+import { version } from "./setup.js";
 
 const app: Router = Router();
 
@@ -20,16 +20,11 @@ app.get("/", (req, res) => {
 app.use("/docs", swaggerui.serve, swaggerui.setup(apispecs));
 app.use("/auth", auth_api);
 
-app.use(verifyToken);
-
-app.get("/test", async (req, res) => {
-  const user = await prisma.user.findUnique({
-    where: {
-      id: req.auth?.userId,
-    },
-  });
-  res.send(`Hello there! User: ${user?.username}`);
+app.get("/version", (req, res) => {
+  res.status(200).json(version);
 });
+
+app.use(verifyToken);
 
 app.use("/games", games_api);
 app.use("/chars", chars_api);

@@ -22,6 +22,7 @@ const envVariables = z.object({
   STORAGE_QUOTA_USER: z.coerce.number().min(1).default(104857600), //100mb
   STORAGE_QUOTA_ADMIN: z.coerce.number().min(1).default(1073741824), //1gb
   REGISTERED_USERS_LIMITED: envBoolean.default("false"),
+  ENABLE_ADMIN_TOKEN: envBoolean.default("false"),
 });
 
 export type ProcessEnv = z.infer<typeof envVariables>;

@@ -187,6 +187,20 @@ async function createNewSession(
   };
 }
 
+export function generateAdminToken(userId: number | null = null) {
+  return jwt.sign(
+    {
+      userId: userId ?? -1,
+      role: "admin",
+      sessionTokenId: -1,
+      sessionId: -1,
+      type: "access",
+    }, // sessionId: session.id
+    env.AUTH_SECRET,
+    { expiresIn: "30m" }
+  );
+}
+
 function assignSessionInfo(sessionId: number, req: Request) {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   return prisma.session.update({
@@ -468,10 +482,10 @@ app.post("/logout", verifyToken, async (req, res) => {
         },
       });
     }
-    log.info(`User ${user.username} Logged out`, {
+    log.info(`User ${user.username} logged out`, {
       user: user.id,
-      sessionId: auth.sessionTokenId,
-      sessionTokenId: auth.sessionId,
+      sessionId: auth.sessionId,
+      sessionTokenId: auth.sessionTokenId,
     });
     res.status(200).json({
       status: "ok",

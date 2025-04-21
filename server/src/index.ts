@@ -7,6 +7,7 @@ import api from "./api.js";
 import env from "./env.js";
 import fs from "fs";
 import path from "path";
+import { generateAdminToken } from "./api/auth.js";
 
 const app: Express = express();
 const port = env.PORT;
@@ -33,6 +34,11 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 app.use("/api", api);
+
+if (env.ENABLE_ADMIN_TOKEN) {
+  const token = generateAdminToken();
+  console.log(`Admin token: '${token}'`);
+}
 
 app.listen(port, () => {
   console.log(`[server]: Server is running at http://localhost:${port}`);
