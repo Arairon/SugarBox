@@ -2,7 +2,7 @@ import prisma from "../db.js";
 import { Router } from "express";
 import bodyParser from "body-parser";
 import log from "../logger.js";
-import { validateAuth, verifyToken } from "./auth.js";
+import { basicLimiter, validateAuth, verifyToken } from "./auth.js";
 import env from "../env.js";
 import argon2 from "argon2";
 import { user_role } from "@prisma/client";
@@ -13,6 +13,7 @@ const app: Router = Router();
 
 app.use(bodyParser.json({ limit: "1mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "1mb" }));
+app.use(basicLimiter);
 
 const quotas = {
   user: env.STORAGE_QUOTA_USER,
@@ -63,7 +64,7 @@ app.delete("/session/:id", verifyToken, async (req, res) => {
     if (!auth) {
       res.status(403).json({
         status: "error",
-        message: "Invalid auth data",
+        message: "Invalid auth token",
       });
       return;
     }
@@ -118,7 +119,7 @@ app.get("/sessions", verifyToken, async (req, res) => {
     if (!auth) {
       res.status(403).json({
         status: "error",
-        message: "Invalid auth data",
+        message: "Invalid auth token",
       });
       return;
     }
@@ -157,7 +158,7 @@ app.patch("/self", verifyToken, async (req, res) => {
     if (!auth) {
       res.status(403).json({
         status: "error",
-        message: "Invalid auth data",
+        message: "Invalid auth token",
       });
       return;
     }
@@ -256,7 +257,7 @@ app.get("/quota", verifyToken, async (req, res) => {
     if (!auth) {
       res.status(403).json({
         status: "error",
-        message: "Invalid auth data",
+        message: "Invalid auth token",
       });
       return;
     }

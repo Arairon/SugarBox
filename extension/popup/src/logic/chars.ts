@@ -97,6 +97,14 @@ async function upload(char: CharObj, user: UserObj) {
     });
     return;
   }
+  if (res.status === 429) {
+    toast.error("Slow down", {
+      description:
+        "Server has rate limited you. Please wait before continuing. You might want to manually trigger sync to make sure the server got this",
+      duration: 2000,
+    });
+    return;
+  }
   const {
     data: charData,
     status,
@@ -113,8 +121,9 @@ async function upload(char: CharObj, user: UserObj) {
     });
     return;
   }
+  User.updLastCommit(user);
   Object.assign(char, charParse.data);
-  commit(char, null, true);
+  commit(char);
 }
 
 async function uploadNew(char: CharObj, user: UserObj) {
@@ -133,6 +142,14 @@ async function uploadNew(char: CharObj, user: UserObj) {
     });
     return;
   }
+  if (res.status === 429) {
+    toast.error("Slow down", {
+      description:
+        "Server has rate limited you. Please wait before continuing. You might want to manually trigger sync to make sure the server got this",
+      duration: 2000,
+    });
+    return;
+  }
   const {
     data: charData,
     status,
@@ -149,6 +166,7 @@ async function uploadNew(char: CharObj, user: UserObj) {
     });
     return;
   }
+  User.updLastCommit(user);
   Object.assign(char, charParse.data);
   commit(char, null, true);
 }
@@ -157,7 +175,6 @@ function commit(char: CharObj, user: UserObj | null = null, localonly = false) {
   char.updatedAt = Date.now();
   const promise = db.chars.put(char);
   if (localonly || !user) return promise;
-  User.updLastCommit(user);
   promise.then((id) => {
     if (User.online(user, true)) {
       db.chars.get(id).then((c) => {

@@ -111,6 +111,14 @@ async function upload(save: SaveObj, user: UserObj) {
     });
     return;
   }
+  if (res.status === 429) {
+    toast.error("Slow down", {
+      description:
+        "Server has rate limited you. Please wait before continuing. You might want to manually trigger sync to make sure the server got this",
+      duration: 2000,
+    });
+    return;
+  }
   const {
     data: saveData,
     status,
@@ -127,8 +135,9 @@ async function upload(save: SaveObj, user: UserObj) {
     });
     return;
   }
+  User.updLastCommit(user);
   Object.assign(save, saveParse.data);
-  commit(save, null, true);
+  commit(save);
 }
 
 async function uploadNew(save: SaveObj, user: UserObj) {
@@ -171,7 +180,6 @@ function commit(save: SaveObj, user: UserObj | null = null, localonly = false) {
   save.updatedAt = Date.now();
   const promise = db.saves.put(save);
   if (localonly || !user) return promise;
-  User.updLastCommit(user);
   promise.then((id) => {
     if (User.online(user, true)) {
       db.saves.get(id).then((s) => {

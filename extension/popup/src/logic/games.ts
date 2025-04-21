@@ -50,7 +50,6 @@ function commit(game: GameObj, user: UserObj | null = null, localonly = false) {
   game.updatedAt = Date.now();
   const promise = db.games.put(game);
   if (localonly || !user) return promise;
-  User.updLastCommit(user);
   promise.then((id) => {
     if (User.online(user, true)) {
       db.games.get(id).then((g) => {
@@ -128,6 +127,14 @@ async function upload(game: GameObj, user: UserObj) {
     });
     return;
   }
+  if (res.status === 429) {
+    toast.error("Slow down", {
+      description:
+        "Server has rate limited you. Please wait before continuing. You might want to manually trigger sync to make sure the server got this",
+      duration: 2000,
+    });
+    return;
+  }
   const {
     data: gameData,
     status,
@@ -144,8 +151,9 @@ async function upload(game: GameObj, user: UserObj) {
     });
     return;
   }
+  User.updLastCommit(user);
   Object.assign(game, gameParse.data);
-  commit(game, null, true);
+  commit(game);
 }
 
 async function uploadNew(game: GameObj, user: UserObj) {
@@ -164,6 +172,14 @@ async function uploadNew(game: GameObj, user: UserObj) {
     });
     return;
   }
+  if (res.status === 429) {
+    toast.error("Slow down", {
+      description:
+        "Server has rate limited you. Please wait before continuing. You might want to manually trigger sync to make sure the server got this",
+      duration: 2000,
+    });
+    return;
+  }
   const {
     data: gameData,
     status,
@@ -180,6 +196,7 @@ async function uploadNew(game: GameObj, user: UserObj) {
     });
     return;
   }
+  User.updLastCommit(user);
   Object.assign(game, gameParse.data);
   commit(game, null, true);
 }

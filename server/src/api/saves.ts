@@ -1,7 +1,7 @@
 import express, { Router } from "express";
 import prisma from "../db.js";
 import log from "../logger.js";
-import { validateAuth } from "./auth.js";
+import { basicLimiter, validateAuth } from "./auth.js";
 // import crypto from "crypto";
 import { z } from "zod";
 // import zlib from "zlib";
@@ -10,6 +10,7 @@ import { formatZodIssue } from "../utils.js";
 const app: Router = Router();
 
 app.use(express.json({ limit: "10mb" }));
+app.use(basicLimiter);
 
 // export function compressSave(saveData: string): string {
 //   return zlib.deflateSync(saveData).toString("base64");
@@ -37,7 +38,7 @@ export const SaveSchema = z.object({
     .optional()
     .transform((v) => v ?? -1),
   data: z.string().max(1000000, "A save cannot exceed 1mb"),
-  size: z.number(),
+  size: z.number().default(-1),
   hash: z.string().max(256, "Hash cannot be that long (256)"),
   archived: z.boolean({ coerce: true }).default(false),
   archivedAt: z.date({ coerce: true }).default(new Date(0)),
@@ -63,12 +64,13 @@ app.post("/new", async (req, res) => {
   if (!auth) {
     res.status(403).json({
       status: "error",
-      message: "Invalid auth data",
+      message: "Invalid auth token",
     });
     return;
   }
   try {
     save.ownerId = auth.userId;
+    save.size = save.data.length;
     const createdSave = await prisma.save.create({
       data: save,
     });
@@ -145,7 +147,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
   if (!auth) {
     res.status(403).json({
       status: "error",
-      message: "Invalid auth data",
+      message: "Invalid auth token",
     });
     return;
   }
@@ -165,6 +167,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 
   try {
     saveData.ownerId = auth.userId;
+    if (saveData.data) saveData.size = saveData.data.length;
     const save = await prisma.save.upsert({
       where: {
         uuid: saveId,
@@ -206,7 +209,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
   if (!auth) {
     res.status(403).json({
       status: "error",
-      message: "Invalid auth data",
+      message: "Invalid auth token",
     });
     return;
   }

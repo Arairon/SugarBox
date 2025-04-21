@@ -8,6 +8,7 @@ import chars_api from "./api/chars.js";
 import saves_api from "./api/saves.js";
 import sync_api from "./api/sync.js";
 import user_api from "./api/user.js";
+import admin_api from "./api/admin.js";
 import auth_api, { verifyToken } from "./api/auth.js";
 
 const app: Router = Router();
@@ -35,5 +36,6 @@ app.use("/chars", chars_api);
 app.use("/saves", saves_api);
 app.use("/sync", sync_api);
 app.use("/user", user_api);
+app.use("/admin", admin_api);
 
 export default app;

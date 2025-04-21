@@ -10,6 +10,23 @@ import { z } from "zod";
 import { formatZodIssue } from "../utils.js";
 import ms, { StringValue } from "ms";
 import { UserObj } from "./user.js";
+import rateLimit from "express-rate-limit";
+
+export const basicLimiter = rateLimit({
+  windowMs: 30000,
+  max: 30,
+  validate: {
+    xForwardedForHeader: false,
+  },
+});
+
+export const strictLimiter = rateLimit({
+  windowMs: 120000,
+  max: 5,
+  validate: {
+    xForwardedForHeader: false,
+  },
+});
 
 export const UserRegisterSchema = z.object({
   username: z
@@ -55,6 +72,8 @@ const app: Router = Router();
 
 app.use(bodyParser.json({ limit: "1mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "1mb" }));
+
+app.use(basicLimiter);
 
 type SessionTokenObj = {
   id: number;
@@ -181,7 +200,7 @@ function assignSessionInfo(sessionId: number, req: Request) {
   });
 }
 
-app.post("/register", async (req, res) => {
+app.post("/register", strictLimiter, async (req, res) => {
   try {
     const { data, success, error } = UserRegisterSchema.safeParse(req.body);
     if (!success) {
@@ -259,13 +278,13 @@ app.post("/register", async (req, res) => {
   }
 });
 
-app.get("/refresh", verifyToken, async (req, res) => {
+app.get("/refresh", strictLimiter, verifyToken, async (req, res) => {
   try {
     const { data: auth } = validateAuth(req.auth, "refresh");
     if (!auth) {
       res.status(403).json({
         status: "error",
-        message: "Invalid auth data",
+        message: "Invalid auth token",
       });
       return;
     }
@@ -328,7 +347,7 @@ app.get("/refresh", verifyToken, async (req, res) => {
   }
 });
 
-app.post("/login", async (req, res) => {
+app.post("/login", strictLimiter, async (req, res) => {
   try {
     const { data, success, error } = UserLoginSchema.safeParse(req.body);
     if (!success) {
@@ -404,7 +423,7 @@ app.post("/logout", verifyToken, async (req, res) => {
     if (!auth) {
       res.status(403).json({
         status: "error",
-        message: "Invalid auth data",
+        message: "Invalid auth token",
       });
       return;
     }
@@ -564,7 +583,7 @@ export function verifyToken(
 ): void {
   const authHeader = req.header("Authorization");
   const token = authHeader?.split(" ")?.at(1);
-  if (!token) {
+  if (!authHeader || !token) {
     res.status(401).json({
       status: "error",
       message: "You must be authorized to access this route",
@@ -599,8 +618,13 @@ export function requireAdmin(
   res: Response,
   next: NextFunction
 ): void {
-  if (req.auth?.role !== "admin") {
-    log.debug("User role: " + req.auth?.role);
+  if (req.auth?.role !== user_role.admin) {
+    log.warn("Admin request from a non-admin user", {
+      user: req.auth?.userId,
+      sessionId: req.auth?.sessionId,
+      sessionTokenId: req.auth?.sessionTokenId,
+      role: req.auth?.role,
+    });
     res.status(401).json({
       status: "error",
       message: "You are not authorized to access this endpoint",

@@ -159,7 +159,7 @@ async function refreshSession(user: UserObj): Promise<UserActionRes> {
     user.session = SessionSchema.parse(response.data.session);
     user.online = true;
   } else {
-    if (res?.status === 403 || res?.status === 404) {
+    if (res?.status === 401 || res?.status === 403 || res?.status === 404) {
       user.online = false;
       if (!user.offlineReason)
         user.offlineReason = "Refresh failed. Could not login";
@@ -259,6 +259,7 @@ async function syncUp(user: UserObj, cutoffPoint: Date) {
     return -1;
   }
   const errCount = data?.data?.errors?.length ?? 0;
+  User.updLastCommit(user);
   if (errCount)
     console.warn(`Failed to sync up ${errCount} items\n`, data.data.errors);
   return itemCount - errCount;
@@ -323,6 +324,7 @@ async function syncDown(user: UserObj, cutoffPoint: Date) {
     Save.commit(data);
     count++;
   }
+  User.updLastCommit(user);
   return count;
 }
 
@@ -372,7 +374,7 @@ async function updateSelf(user: UserObj): Promise<UserActionRes> {
     Object.assign(data.user, userData);
     data.user.online = true;
   } else {
-    if (res?.status === 403 || res?.status === 404) {
+    if (res?.status === 401 || res?.status === 403 || res?.status === 404) {
       user.online = false;
       if (!user.offlineReason)
         user.offlineReason = "Refresh failed. Could not login";
@@ -381,9 +383,16 @@ async function updateSelf(user: UserObj): Promise<UserActionRes> {
       return data;
     }
     data.user.online = false;
-    if (!data.user.offlineReason)
-      data.user.offlineReason = "Connection failed. Server did not respond";
-    data.message = "Server did not respond";
+    if (res) {
+      if (!data.user.offlineReason)
+        data.user.offlineReason =
+          "Connection failed. Server refused connection";
+      data.message = "Server refused connection";
+    } else {
+      if (!data.user.offlineReason)
+        data.user.offlineReason = "Connection failed. Server did not respond";
+      data.message = "Server did not respond";
+    }
     try {
       if (res) {
         const msg = await res?.json();

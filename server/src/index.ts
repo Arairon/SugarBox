@@ -23,7 +23,7 @@ if (!fs.existsSync("log")) fs.mkdirSync("log");
 const accessLogStream = fs.createWriteStream(path.join("log", "access.log"), {
   flags: "a",
 });
-app.set("trust proxy", true);
+app.set("trust proxy", 2);
 app.use(logger("combined", { stream: accessLogStream }));
 app.use(logger("dev"));
 app.use(cookieParser());

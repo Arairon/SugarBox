@@ -3,13 +3,14 @@ import prisma from "../db.js";
 import log from "../logger.js";
 import { RefinementCtx, z } from "zod";
 // import { zu } from "zod_utilz";
-import { validateAuth } from "./auth.js";
+import { basicLimiter, validateAuth } from "./auth.js";
 import { formatZodIssue } from "../utils.js";
 //import { requireAdmin } from "./auth.js";
 
 const app: Router = Router();
 
 app.use(express.json({ limit: "10mb" }));
+app.use(basicLimiter);
 
 app.get("/", async (req, res) => {
   const chars = await prisma.char.findMany({
@@ -146,7 +147,7 @@ app.post("/new", async (req, res) => {
   if (!auth) {
     res.status(403).json({
       status: "error",
-      message: "Invalid auth data",
+      message: "Invalid auth token",
     });
     return;
   }
@@ -186,7 +187,7 @@ app.patch("/uuid/:charId", async (req, res) => {
   if (!auth) {
     res.status(403).json({
       status: "error",
-      message: "Invalid auth data",
+      message: "Invalid auth token",
     });
     return;
   }
@@ -244,7 +245,7 @@ app.delete("/uuid/:charId", async (req, res) => {
   if (!auth) {
     res.status(403).json({
       status: "error",
-      message: "Invalid auth data",
+      message: "Invalid auth token",
     });
     return;
   }
