@@ -111,7 +111,7 @@ If you just want the dev build, then all you need to do is:
 
 ![SaveSlotsImage](/docs/img/slots.png)
 
-These are saves for 'Character A' in game 'Degrees Of Ledity'.
+These are saves for 'Character A' in game 'Degrees Of Lewdity'.
 You can create as many slots as you want.
 
 ![ExtraSaveInfoImage](/docs/img/extrasaveinfo.png)

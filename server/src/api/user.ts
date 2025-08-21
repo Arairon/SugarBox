@@ -129,12 +129,8 @@ app.get("/sessions", verifyToken, async (req, res) => {
         active: true,
       },
       include: {
-        tokens: true,
+        tokens: { where: { active: true } },
       },
-    });
-
-    sessions.map((session) => {
-      session.tokens = session.tokens.filter((t) => t.active);
     });
 
     res.status(200).json(sessions);

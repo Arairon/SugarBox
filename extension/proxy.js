@@ -2,14 +2,20 @@ let reqId = 0;
 let enabled = true;
 const pendingRequests = {};
 
+console.debug(
+  "SugarBox Connector Loaded (It's ok if you see this multiple times)"
+);
+
 function popupToPageHandler(msg, sender, sendResponse) {
   if (!enabled) return;
   const data = {
     id: reqId,
     data: msg,
   };
-  pendingRequests[reqId++] = sendResponse;
+  pendingRequests[reqId++] = { sendResponse };
   window.dispatchEvent(new CustomEvent("SugarBoxToPage", { detail: data }));
+
+  return true;
 }
 chrome.runtime.onMessage.addListener(popupToPageHandler);
 
@@ -21,6 +27,6 @@ window.addEventListener("SugarBoxToExt", (ev) => {
       return;
     }
   }
-  pendingRequests[data.id](data.data);
+  pendingRequests[data.id].sendResponse(data.data);
   delete pendingRequests[data.id];
 });
