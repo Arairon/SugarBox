@@ -14,6 +14,8 @@ export default defineConfig({
     tailwindcss()
   ],
   build: {
+    minify: false,
+    sourcemap: true,
     outDir: "dist",
     rollupOptions: {
       input: {
@@ -30,5 +32,12 @@ export default defineConfig({
         assetFileNames: "assets/[name].[ext]",
       },
     },
+    watch: {
+      chokidar: {
+        usePolling: true,
+        interval: 500,
+        binaryInterval: 500,
+      }
+    }
   },
 })

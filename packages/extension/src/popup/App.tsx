@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './App.css'
+import { sendCommand } from './lib/page'
 
 function App() {
   const [count, setCount] = useState(0)
@@ -24,6 +25,7 @@ function App() {
       <p className="read-the-docs">
         Click on the Vite and React logos to learn more
       </p>
+      <button onClick={() => sendCommand({ cmd: "save" })}>Retry attach</button>
     </>
   )
 }

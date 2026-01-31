@@ -1,0 +1,16 @@
+
+export function formatTime(rawdate: string | number | Date, file = false) {
+  const date = new Date(rawdate);
+  const h = date.getHours().toString().padStart(2, "0");
+  const m = date.getMinutes().toString().padStart(2, "0");
+  const s = date.getSeconds();
+  const d = date.getDate().toString().padStart(2, "0");
+  const M = (date.getMonth() + 1).toString().padStart(2, "0");
+  const y = date.getFullYear().toString().padStart(4, "0");
+  if (file) return `${y}-${M}-${d}_${h}-${m}-${s}`;
+  return `${h}:${m} ${y}-${M}-${d}`;
+}
+
+export function delay(ms: number) {
+  return new Promise(res => setTimeout(res, ms));
+}
