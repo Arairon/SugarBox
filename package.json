@@ -1,0 +1,7 @@
+{
+  "name": "sugarbox",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ]
+}
