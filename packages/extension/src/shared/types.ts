@@ -164,11 +164,11 @@ export function createEmptyUserObject(): UserObj {
 }
 
 export type SugarBoxPageCommand =
-  { cmd: "check_sugarcube" } |
-  // { cmd: "reinit", args?: [number] } |
-  { cmd: "get_passage" } |
-  { cmd: "save" } |
-  { cmd: "load", args: [string] }
+  | { cmd: "check_sugarcube" }
+  // | { cmd: "reinit", args?: [number] } |
+  | { cmd: "get_passage" }
+  | { cmd: "save" }
+  | { cmd: "load", args: [string] }
 
 export type SugarBoxPageRequest = {
   id?: number;
@@ -188,4 +188,11 @@ export type SugarBoxPageResponse = {
   }
 }
 
+export type ChromeMessageCommand =
+  | { cmd: "ping" }
+  | { cmd: "get_state" }
 
+
+export type ChromeMessageRequest = {
+  target: "background" | "popup",
+} & ChromeMessageCommand

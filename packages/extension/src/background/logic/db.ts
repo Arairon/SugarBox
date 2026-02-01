@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import { exportDB, importInto } from "dexie-export-import";
-import type { CharObj, GameObj, SaveObj } from "../shared/types";
+import type { CharObj, GameObj, SaveObj } from "@/shared/types";
 import { dbSchema } from "@/shared/dbSchema";
 
 type dbType = Dexie & {

@@ -1,8 +1,9 @@
-import { getCurrentBrowserTab } from "@/shared/browser";
 import type { SugarBoxPageCommand } from "@/shared/types";
+import { state } from "./state";
 
 export async function sendCommand(command: SugarBoxPageCommand) {
-  const tab = await getCurrentBrowserTab();
+  const tab = await chrome.tabs.get(state.tabId);
+  if (!tab.id) return
   return new Promise(function(resolve, reject) {
     if (!tab.id) {
       reject("Invalid tab");
@@ -10,7 +11,7 @@ export async function sendCommand(command: SugarBoxPageCommand) {
     }
     try {
       chrome.tabs
-        .sendMessage(tab.id, Object.assign({cmd: "", args: ""}, command))
+        .sendMessage(tab.id, Object.assign({ cmd: "", args: "" }, command))
         .then((res) => resolve(res))
         .catch((err) => reject(err));
     } catch {
@@ -19,7 +20,4 @@ export async function sendCommand(command: SugarBoxPageCommand) {
   });
 }
 
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(globalThis as any).sendCommand = sendCommand
-
+// (globalThis as any).sendCommand = sendCommand
