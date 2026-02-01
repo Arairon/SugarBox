@@ -7,8 +7,12 @@ export function Content() {
   return (
     <main className='flex flex-1 flex-col items-center justify-center'>
       {
-        Object.entries(pages).map(([page, content]) => {
-          return <Activity mode={currentPage === page ? "visible" : "hidden"}>{content()}</Activity>
+        Object.entries(pages).map(([pageName, Page]) => {
+          return (
+            <Activity mode={currentPage === pageName ? "visible" : "hidden"} key={pageName}>
+              <Page/>
+            </Activity>
+          )
         })
       }
     </main>

@@ -1,4 +1,5 @@
 import type { UserObj, GameObj, CharObj } from "@/shared/types"
+import {onMessage} from "webext-bridge/background"
 
 export type SugarBoxState = {
   user: UserObj | null
@@ -12,6 +13,6 @@ export const state: SugarBoxState = {
   game: null,
   char: null,
   tabId: 0
-
 }
 
+onMessage("bg_get_state", ()=>state)

@@ -1,6 +1,7 @@
 import type { CharObj } from "@/shared/types";
 import { db } from "./db";
 import { state } from "./state"
+import { onMessage } from "webext-bridge/background";
 
 const latestCharMap: Record<number, number> = {}; // GameID: CharID
 
@@ -31,11 +32,18 @@ async function handleTabSwitch(tabId: number) {
 async function switchTo(char: CharObj | null) {
   if (state.char === char) return;
   state.char = char;
-  // Fire an event
+  if (state.game) {
+    if (char)
+      latestCharMap[state.game.id] = char.id;
+    else delete latestCharMap[state.game.id]
+
+    saveLatestCharMap()
+  }
+  // TODO: Fire an event
   console.log(`Switched Char: `, char)
-
-
 }
+
+onMessage("bg_change_char", ({ data }) => switchTo(data as CharObj | null))
 
 export const Char = {
   handleTabSwitch,

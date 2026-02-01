@@ -2,7 +2,9 @@ import { Char } from "./logic/char";
 import { db } from "./logic/db";
 import { Game } from "./logic/game";
 import { state } from "./logic/state";
-import "./logic/messageHandler.ts";
+import { onMessage } from "webext-bridge/background";
+
+onMessage("bg_ping", () => "pong" as const)
 
 console.log(db.name)
 

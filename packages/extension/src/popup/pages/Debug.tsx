@@ -1,14 +1,13 @@
 import { Button } from "@/shared/components/ui/button"
-import { request } from "../lib/bg"
+import { loadBackgroundState } from "../lib/state";
+import { sendMessage } from "webext-bridge/popup";
 
 export default function Debug() {
   return (
     <>
       Debug
-      <Button onClick={()=>request("ping")}>ping bg</Button>
-      <Button onClick={()=>request("get_state").then(data=>{
-        console.log(data);
-      })}>get_state</Button>
+      <Button onClick={() => sendMessage("bg_ping", undefined, "background")}>ping bg</Button>
+      <Button onClick={() => loadBackgroundState()}>get_state</Button>
     </>
   )
 }

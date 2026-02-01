@@ -1,7 +1,9 @@
 import type { SugarBoxPageRequest, SugarBoxPageResponse } from "@/shared/types";
-import { delay } from "@/shared/utils";
 import type { SugarCube as SugarCubeType } from "./types";
 
+export function delay(ms: number) {
+  return new Promise(res => setTimeout(res, ms));
+}
 
 function isObject(obj: unknown) {
   return typeof obj === "object" && obj !== null;

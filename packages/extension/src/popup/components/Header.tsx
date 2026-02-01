@@ -1,7 +1,75 @@
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import { db } from "../lib/db";
+import { useSugarBoxState } from "../lib/state";
+import { useLiveQuery } from "dexie-react-hooks";
+import { sendMessage } from "webext-bridge/popup";
+
+
+function CurrentGame() {
+  const { game, page, setPage } = useSugarBoxState();
+  return (
+    <div className="flex max-w-60 min-w-40 grow cursor-pointer items-center justify-center border-r border-l-2
+border-cyan-700 px-2 transition-colors hover:border-cyan-500 dark:hover:bg-background/30" onClick={() => {
+        if (page === "games") {
+          setPage("home")
+        } else {
+          setPage("games")
+        }
+      }}>
+      <a>
+        {game?.name ?? "No game found"}
+      </a>
+    </div>
+  )
+}
+
+function CurrentChar() {
+  const { game, char, setChar, setPage } = useSugarBoxState();
+  const chars = useLiveQuery(() => db.chars.where("gameId").equals(game?.uuid ?? -1).and(c => !c.archived).toArray(), [game]) ?? [];
+
+  return (
+    <Select
+      disabled={!game}
+      value={char !== null ? char.id.toString() : "-1"}
+      onValueChange={async (value) => {
+        if (value == "-2") {
+          //toast.info("You can create characters by clicking on the game and switching to 3rd page", {duration:3000})
+          setPage("games")
+          return;
+        }
+        let char = await db.chars.get(Number(value)) ?? null
+        if (char && ((char?.gameId !== game?.uuid) || char?.archived)) {
+          char = null;
+        }
+        setChar(char)
+        sendMessage("bg_change_char", char, "background")
+        if (game) {
+          setPage("home")
+        }
+      }}>
+      <SelectTrigger className="flex max-w-60 min-w-40 cursor-pointer items-center justify-center rounded-none border-y-0
+border-r-2 border-l border-cyan-700 px-2 transition-colors hover:border-cyan-500 dark:hover:bg-background/30" >
+        <SelectValue placeholder="Any" />
+      </SelectTrigger>
+      <SelectContent position="popper">
+        <SelectGroup>
+          <SelectLabel>Character</SelectLabel>
+          <SelectItem value="-1">Any</SelectItem>
+          {chars.map((char) => (
+            <SelectItem key={char.uuid} value={char.id.toString()}>{char.name}</SelectItem>
+          ))}
+          <SelectItem value="-2">New character</SelectItem>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  )
+}
+
 export function Header() {
   return (
-    <header className='h-10 border-b-3 border-double border-header-border bg-header px-2'>
-      Header
+    <header className='flex h-10 flex-row border-b-3 border-double border-header-border bg-header px-2'>
+      <CurrentGame />
+      <CurrentChar />
     </header>
   );
 }

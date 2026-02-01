@@ -1,13 +1,15 @@
-import { Button } from "@/shared/components/ui/button";
 import { useSugarBoxState } from "../lib/state";
 
 export default function Home() {
-  const {setPage} = useSugarBoxState();
+  const { user, game, char } = useSugarBoxState();
 
   return (
     <>
       Home
-      <Button onClick={()=>setPage("debug")}>debug</Button>
+
+      <a>U:{user?.username}</a>
+      <a>G:{game?.name}    </a>
+      <a>C:{char?.name}    </a>
     </>
   )
 }
