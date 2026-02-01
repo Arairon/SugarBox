@@ -1,4 +1,4 @@
-import type { SugarBoxPageRequest, SugarBoxPageResponse } from "../shared/types";
+import type { SugarBoxPageRequest, SugarBoxPageResponse } from "@/shared/types";
 
 function isObject(obj: unknown) {
   return typeof obj === "object" && obj !== null;

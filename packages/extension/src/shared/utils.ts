@@ -1,3 +1,9 @@
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
 
 export function formatTime(rawdate: string | number | Date, file = false) {
   const date = new Date(rawdate);
@@ -14,3 +20,4 @@ export function formatTime(rawdate: string | number | Date, file = false) {
 export function delay(ms: number) {
   return new Promise(res => setTimeout(res, ms));
 }
+

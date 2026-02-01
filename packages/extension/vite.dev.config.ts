@@ -13,6 +13,11 @@ export default defineConfig({
     }),
     tailwindcss()
   ],
+  resolve: {
+    alias: {
+      "@": resolve(__dirname, "./src"),
+    },
+  },
   build: {
     minify: false,
     sourcemap: true,

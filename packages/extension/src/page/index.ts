@@ -1,5 +1,5 @@
-import type { SugarBoxPageRequest, SugarBoxPageResponse } from "../shared/types";
-import { delay } from "../shared/utils";
+import type { SugarBoxPageRequest, SugarBoxPageResponse } from "@/shared/types";
+import { delay } from "@/shared/utils";
 import type { SugarCube as SugarCubeType } from "./types";
 
 
