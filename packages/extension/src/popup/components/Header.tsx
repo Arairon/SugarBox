@@ -8,7 +8,7 @@ import { sendMessage } from "webext-bridge/popup";
 function CurrentGame() {
   const { game, page, setPage } = useSugarBoxState();
   return (
-    <div className="flex max-w-60 min-w-40 grow cursor-pointer items-center justify-center border-r border-l-2
+    <button className="flex max-w-60 min-w-40 grow cursor-pointer items-center justify-center border-r border-l-2
 border-cyan-700 px-2 transition-colors hover:border-cyan-500 dark:hover:bg-background/30" onClick={() => {
         if (page === "games") {
           setPage("home")
@@ -19,7 +19,7 @@ border-cyan-700 px-2 transition-colors hover:border-cyan-500 dark:hover:bg-backg
       <a>
         {game?.name ?? "No game found"}
       </a>
-    </div>
+    </button>
   )
 }
 
@@ -47,10 +47,12 @@ function CurrentChar() {
           setPage("home")
         }
       }}>
+
       <SelectTrigger className="flex max-w-60 min-w-40 cursor-pointer items-center justify-center rounded-none border-y-0
 border-r-2 border-l border-cyan-700 px-2 transition-colors hover:border-cyan-500 dark:hover:bg-background/30" >
         <SelectValue placeholder="Any" />
       </SelectTrigger>
+
       <SelectContent position="popper">
         <SelectGroup>
           <SelectLabel>Character</SelectLabel>
