@@ -1,8 +1,8 @@
-import { Char } from "./logic/char";
 import { db } from "./logic/db";
 import { Game } from "./logic/game";
 import { state } from "./logic/state";
 import { onMessage } from "webext-bridge/background";
+import "./logic/page.ts"
 
 onMessage("bg_ping", () => "pong" as const)
 
@@ -17,7 +17,6 @@ async function updateCurrentTab(tabId: number) {
   console.log("Switched to ", tab)
   state.tabId = tab.id
   await Game.handleTabSwitch(tab.id)
-  await Char.handleTabSwitch(tab.id)
 
 }
 

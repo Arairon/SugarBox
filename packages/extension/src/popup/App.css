@@ -17,3 +17,11 @@ body {
   max-height: var(--popup-height, 400px);
   overflow: hidden;
 }
+
+button {
+  cursor: pointer;
+}
+
+.scroll-area-viewport-block > div {
+  display: block !important;
+}
