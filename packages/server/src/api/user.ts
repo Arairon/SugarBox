@@ -1,33 +1,25 @@
-import prisma from "../db.js";
+import { db } from "@/db";
 import { Router } from "express";
 import bodyParser from "body-parser";
-import log from "../logger.js";
-import { basicLimiter, validateAuth, verifyToken } from "./auth.js";
-import env from "../env.js";
+import log from "@/logger";
+import { basicLimiter, requireAuth } from "./auth";
+import env from "@/env";
 import argon2 from "argon2";
-import { user_role } from "@prisma/client";
 import { z } from "zod";
-import { formatZodIssue } from "../utils.js";
+import { formatZodIssue } from "@/utils";
+import { user_role } from "@/generated/prisma/enums";
 
 const app: Router = Router();
 
 app.use(bodyParser.json({ limit: "1mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "1mb" }));
 app.use(basicLimiter);
+app.use(requireAuth);
 
-const quotas = {
+const quotas: Record<user_role, number> = {
   user: env.STORAGE_QUOTA_USER,
   admin: env.STORAGE_QUOTA_ADMIN,
   limited: 1048576, // just 1mb
-};
-
-export type UserObj = {
-  username: string;
-  password: string;
-  id: number;
-  role: user_role;
-  email: string | null;
-  createdAt: Date;
 };
 
 const UserPatchSchema = z.object({
@@ -58,9 +50,9 @@ const UserPatchSchema = z.object({
     .optional(),
 });
 
-app.delete("/session/:id", verifyToken, async (req, res) => {
+app.delete("/session/:id", async (req, res) => {
   try {
-    const { data: auth } = validateAuth(req.auth);
+    const auth = req.auth;
     if (!auth) {
       res.status(403).json({
         status: "error",
@@ -70,7 +62,7 @@ app.delete("/session/:id", verifyToken, async (req, res) => {
     }
     const sessionId = z.coerce.number().parse(req.params.id);
 
-    const { tokens } = await prisma.session.update({
+    const { tokens } = await db.session.update({
       where: {
         id: sessionId,
         userId: auth.userId,
@@ -84,7 +76,7 @@ app.delete("/session/:id", verifyToken, async (req, res) => {
     });
 
     tokens.map(async (token) => {
-      await prisma.sessionToken.update({
+      await db.sessionToken.update({
         where: {
           id: token.id,
           userId: auth.userId,
@@ -103,7 +95,6 @@ app.delete("/session/:id", verifyToken, async (req, res) => {
     log.error(`Drop session error: ${err}`, {
       user: req.auth?.userId,
       sessionId: req.auth?.sessionId,
-      sessionTokenId: req.auth?.sessionTokenId,
       role: req.auth?.role,
     });
     res.status(500).json({
@@ -113,9 +104,9 @@ app.delete("/session/:id", verifyToken, async (req, res) => {
   }
 });
 
-app.get("/sessions", verifyToken, async (req, res) => {
+app.get("/sessions", async (req, res) => {
   try {
-    const { data: auth } = validateAuth(req.auth);
+    const auth = req.auth;
     if (!auth) {
       res.status(403).json({
         status: "error",
@@ -123,7 +114,7 @@ app.get("/sessions", verifyToken, async (req, res) => {
       });
       return;
     }
-    const sessions = await prisma.session.findMany({
+    const sessions = await db.session.findMany({
       where: {
         userId: auth.userId,
         active: true,
@@ -138,7 +129,6 @@ app.get("/sessions", verifyToken, async (req, res) => {
     log.error(`Get sessions error: ${err}`, {
       user: req.auth?.userId,
       sessionId: req.auth?.sessionId,
-      sessionTokenId: req.auth?.sessionTokenId,
       role: req.auth?.role,
     });
     res.status(500).json({
@@ -148,9 +138,9 @@ app.get("/sessions", verifyToken, async (req, res) => {
   }
 });
 
-app.patch("/self", verifyToken, async (req, res) => {
+app.patch("/self", async (req, res) => {
   try {
-    const { data: auth } = validateAuth(req.auth);
+    const auth = req.auth;
     if (!auth) {
       res.status(403).json({
         status: "error",
@@ -168,11 +158,10 @@ app.patch("/self", verifyToken, async (req, res) => {
     }
     log.info("User info updated", {
       user: auth.userId,
-      sessionTokenId: auth.sessionTokenId,
       sessionId: auth.sessionId,
     });
     if (data.username) {
-      const existing = await prisma.user.findFirst({
+      const existing = await db.user.findFirst({
         where: {
           username: data.username,
           id: {
@@ -189,7 +178,7 @@ app.patch("/self", verifyToken, async (req, res) => {
       }
     }
     if (data.email) {
-      const existing = await prisma.user.findFirst({
+      const existing = await db.user.findFirst({
         where: {
           email: data.email,
           id: {
@@ -210,20 +199,20 @@ app.patch("/self", verifyToken, async (req, res) => {
       password = data.password;
       delete data.password;
     }
-    let user = await prisma.user.update({
+    let user = await db.user.update({
       where: {
         id: auth.userId,
       },
       data,
     });
     if (password) {
-      user = await prisma.user.update({
+      user = await db.user.update({
         where: {
           id: auth.userId,
         },
         data: {
           password: await argon2.hash(
-            user.id + password + user.createdAt.toJSON()
+            user.id + password + user.createdAt.toJSON(),
           ),
         },
       });
@@ -237,7 +226,6 @@ app.patch("/self", verifyToken, async (req, res) => {
     log.error(`Self patch error: ${err}`, {
       user: req.auth?.userId,
       sessionId: req.auth?.sessionId,
-      sessionTokenId: req.auth?.sessionTokenId,
       role: req.auth?.role,
     });
     res.status(500).json({
@@ -247,9 +235,9 @@ app.patch("/self", verifyToken, async (req, res) => {
   }
 });
 
-app.get("/quota", verifyToken, async (req, res) => {
+app.get("/quota", async (req, res) => {
   try {
-    const { data: auth } = validateAuth(req.auth);
+    const auth = req.auth;
     if (!auth) {
       res.status(403).json({
         status: "error",
@@ -258,7 +246,7 @@ app.get("/quota", verifyToken, async (req, res) => {
       return;
     }
 
-    const saves = await prisma.save.findMany({
+    const saves = await db.save.findMany({
       where: {
         ownerId: auth.userId,
       },
@@ -270,7 +258,7 @@ app.get("/quota", verifyToken, async (req, res) => {
       message: "Calculated storage quota",
       data: {
         usage: totalSavesSize,
-        quota: quotas[auth.role],
+        quota: quotas[auth.role as user_role],
       },
     });
   } catch (err) {

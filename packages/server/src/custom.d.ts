@@ -6,9 +6,7 @@ declare namespace Express {
 declare interface UserAuthObject {
   userId: number;
   role: user_role;
-  sessionTokenId: number;
   sessionId: number;
-  type: string;
 }
 
 declare global {

@@ -1,5 +1,5 @@
 import winston, { format } from "winston";
-import env from "./env.js";
+import env from "./env";
 
 const f = format.combine(
   format.colorize(),
@@ -7,8 +7,8 @@ const f = format.combine(
   format.align(),
   format.printf(
     (info) =>
-      `${info.timestamp} ${info.level} [${info.user}.${info.sessionId}.${info.sessionTokenId}]: ${info.message}`
-  )
+      `${info.timestamp} ${info.level} [${info.user}.${info.sessionId}]: ${info.message}`,
+  ),
 );
 
 const log = winston.createLogger({

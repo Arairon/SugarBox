@@ -1,10 +1,10 @@
 import express, { Router } from "express";
-import prisma from "../db.js";
-import log from "../logger.js";
+import log from "../logger";
 import { RefinementCtx, z } from "zod";
-import { basicLimiter, validateAuth } from "./auth.js";
-import { formatZodIssue } from "../utils.js";
-//import { requireAdmin } from "./auth.js";
+import { basicLimiter } from "./auth";
+import { formatZodIssue } from "../utils";
+import { db } from "@/db";
+//import { requireAdmin } from "./auth";
 
 const app: Router = Router();
 
@@ -12,7 +12,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(basicLimiter);
 
 app.get("/", async (req, res) => {
-  const games = await prisma.game.findMany({
+  const games = await db.game.findMany({
     where: { ownerId: req.auth?.userId },
   });
   res.status(200).json(games);
@@ -28,7 +28,7 @@ app.get("/uuid/:gameId", async (req, res) => {
     return;
   }
   const gameId = uuidParse.data;
-  const game = await prisma.game.findUnique({
+  const game = await db.game.findUnique({
     where: {
       uuid: gameId,
       ownerId: req.auth?.userId,
@@ -104,7 +104,7 @@ app.post("/new", async (req, res) => {
     });
     return;
   }
-  const { data: auth } = validateAuth(req.auth);
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -114,7 +114,7 @@ app.post("/new", async (req, res) => {
   }
   try {
     game.ownerId = auth.userId;
-    const createdGame = await prisma.game.create({
+    const createdGame = await db.game.create({
       data: game,
     });
     res.status(200).json({
@@ -131,7 +131,6 @@ app.post("/new", async (req, res) => {
     log.error(`Error occurred on game addition. Err: ${err}`, {
       user: req.auth?.userId,
       sessionId: req.auth?.sessionId,
-      sessionTokenId: req.auth?.sessionTokenId,
     });
   }
 });
@@ -147,7 +146,7 @@ app.patch("/uuid/:gameId", async (req, res) => {
   }
   const gameId = uuidParse.data;
 
-  const { data: auth } = validateAuth(req.auth);
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -171,7 +170,7 @@ app.patch("/uuid/:gameId", async (req, res) => {
 
   try {
     gameData.ownerId = auth.userId;
-    const game = await prisma.game.upsert({
+    const game = await db.game.upsert({
       where: {
         uuid: gameId,
         ownerId: auth.userId,
@@ -192,7 +191,6 @@ app.patch("/uuid/:gameId", async (req, res) => {
     log.error(`Error occurred on game patch. Err: ${err}`, {
       user: req.auth?.userId,
       sessionId: req.auth?.sessionId,
-      sessionTokenId: req.auth?.sessionTokenId,
     });
   }
 });
@@ -208,7 +206,7 @@ app.delete("/uuid/:gameId", async (req, res) => {
   }
   const gameId = uuidParse.data;
 
-  const { data: auth } = validateAuth(req.auth);
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -218,7 +216,7 @@ app.delete("/uuid/:gameId", async (req, res) => {
   }
 
   try {
-    await prisma.game.delete({
+    await db.game.delete({
       where: {
         uuid: gameId,
         ownerId: auth.userId,
@@ -237,7 +235,6 @@ app.delete("/uuid/:gameId", async (req, res) => {
     log.error(`Error occurred on game deletion. Err: ${err}`, {
       user: req.auth?.userId,
       sessionId: req.auth?.sessionId,
-      sessionTokenId: req.auth?.sessionTokenId,
     });
   }
 });

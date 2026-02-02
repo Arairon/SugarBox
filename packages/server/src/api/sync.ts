@@ -1,13 +1,13 @@
 import express, { Router } from "express";
-import prisma from "../db.js";
-import log from "../logger.js";
+import log from "../logger";
 import { z, ZodError } from "zod";
-import { basicLimiter, validateAuth } from "./auth.js";
-import { formatZodIssue } from "../utils.js";
-import { GameObj, GameSchema } from "./games.js";
-import { CharObj, CharSchema } from "./chars.js";
-import { SaveObj, SaveSchema } from "./saves.js";
-//import { requireAdmin } from "./auth.js";
+import { basicLimiter } from "./auth";
+import { formatZodIssue } from "../utils";
+import { GameObj, GameSchema } from "./games";
+import { CharObj, CharSchema } from "./chars";
+import { SaveObj, SaveSchema } from "./saves";
+import { db } from "@/db";
+//import { requireAdmin } from "./auth";
 
 const app: Router = Router();
 
@@ -36,7 +36,7 @@ app.post("/up", async (req, res) => {
     });
     return;
   }
-  const { data: auth } = validateAuth(req.auth);
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -58,7 +58,7 @@ app.post("/up", async (req, res) => {
     }
     game.ownerId = auth.userId;
     try {
-      await prisma.game.upsert({
+      await db.game.upsert({
         where: {
           ownerId: auth.userId,
           uuid: game.uuid,
@@ -84,7 +84,7 @@ app.post("/up", async (req, res) => {
     }
     char.ownerId = auth.userId;
     try {
-      await prisma.char.upsert({
+      await db.char.upsert({
         where: {
           ownerId: auth.userId,
           uuid: char.uuid,
@@ -109,7 +109,7 @@ app.post("/up", async (req, res) => {
     }
     save.ownerId = auth.userId;
     try {
-      await prisma.save.upsert({
+      await db.save.upsert({
         where: {
           ownerId: auth.userId,
           uuid: save.uuid,
@@ -126,9 +126,8 @@ app.post("/up", async (req, res) => {
     `Sync uploaded ${games.length}g, ${chars.length}c, ${saves.length}s. Errors [${errors.length}] ${errors}`,
     {
       user: auth.userId,
-      sessionTokenId: auth.sessionTokenId,
       sessionId: auth.sessionId,
-    }
+    },
   );
   res.status(200).json({
     status: "ok",
@@ -152,7 +151,7 @@ app.get("/down", async (req, res) => {
     });
     return;
   }
-  const { data: auth } = validateAuth(req.auth);
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -169,7 +168,7 @@ app.get("/down", async (req, res) => {
   const archived = cutoffPoint.getTime() === 0 ? false : undefined;
   if (games) {
     resp.games = (
-      await prisma.game.findMany({
+      await db.game.findMany({
         where: {
           ownerId: auth.userId,
           archived: archived,
@@ -182,7 +181,7 @@ app.get("/down", async (req, res) => {
   }
   if (chars) {
     resp.chars = (
-      await prisma.char.findMany({
+      await db.char.findMany({
         where: {
           ownerId: auth.userId,
           archived: archived,
@@ -195,7 +194,7 @@ app.get("/down", async (req, res) => {
   }
   if (saves) {
     resp.saves = (
-      await prisma.save.findMany({
+      await db.save.findMany({
         where: {
           ownerId: auth.userId,
           archived: archived,
@@ -213,9 +212,8 @@ app.get("/down", async (req, res) => {
     }s. [${cutoffPoint.toJSON()}]`,
     {
       user: auth.userId,
-      sessionTokenId: auth.sessionTokenId,
       sessionId: auth.sessionId,
-    }
+    },
   );
   res.status(200).json({
     status: "ok",

@@ -1,16 +1,17 @@
 import argon2 from "argon2";
-import prisma from "../db.js";
+import { randomBytes } from "crypto";
+import { db } from "@/db";
 import { user_role } from "@prisma/client";
 import { NextFunction, Router, Request, Response } from "express";
 import bodyParser from "body-parser";
 import jwt from "jsonwebtoken";
-import log from "../logger.js";
-import env from "../env.js";
+import log from "@/logger";
+import env from "@/env";
 import { z } from "zod";
-import { formatZodIssue } from "../utils.js";
+import { formatZodIssue } from "../utils";
 import ms, { StringValue } from "ms";
-import { UserObj } from "./user.js";
 import rateLimit from "express-rate-limit";
+import { Session, User } from "@/generated/prisma/client";
 
 export const basicLimiter = rateLimit({
   windowMs: 30000,
@@ -27,6 +28,193 @@ export const strictLimiter = rateLimit({
     xForwardedForHeader: false,
   },
 });
+
+export async function createSessionToken() {
+  let publicPart = randomBytes(16).toString("hex");
+  while (await db.sessionToken.findUnique({ where: { public: publicPart } })) {
+    // Handle collisions
+    publicPart = randomBytes(20).toString("hex");
+  }
+  const secret = randomBytes(16).toString("hex");
+  const hash = await argon2.hash(secret);
+
+  return {
+    publicPart,
+    key: `SB_${publicPart}:${secret}`,
+    hash,
+  };
+}
+
+export async function validateSessionToken({
+  key,
+}: {
+  key: string;
+  includeUser?: boolean;
+}) {
+  const [publicPart, secret] = key.slice(3).split(":");
+
+  const token = await db.sessionToken.findUnique({
+    where: { public: publicPart, expiresAt: { gt: new Date() }, active: true },
+    include: { user: true, session: true },
+  });
+  if (!token) return null;
+  if (!token.session.active) return null;
+
+  const result = await argon2.verify(token.hash, secret);
+
+  if (!result) return false;
+  return { user: token.user, session: token.session };
+}
+
+async function createNewSession(user: User) {
+  const session = await db.session.create({
+    data: {
+      userId: user.id,
+    },
+  });
+
+  const res = await refreshSession(session);
+  return res as Exclude<typeof res, null>;
+}
+
+async function refreshSession(session: Session) {
+  if (!session.active) return null;
+  await db.sessionToken.updateMany({
+    where: {
+      active: true,
+      sessionId: session.id,
+    },
+    data: {
+      active: false,
+    },
+  });
+
+  const refreshExpiresAt = new Date(
+    Date.now() + ms(env.REFRESH_TOKEN_LIFESPAN as StringValue),
+  );
+
+  const user = await db.user.findUnique({ where: { id: session.userId } });
+  if (!user) return null;
+
+  const token = await createSessionToken();
+  await db.sessionToken.create({
+    data: {
+      userId: user.id,
+      public: token.publicPart,
+      hash: token.hash,
+      expiresAt: refreshExpiresAt,
+      sessionId: session.id,
+    },
+  });
+
+  const authData = {
+    userId: user.id,
+    role: user.role,
+    sessionId: session.id,
+  };
+  const accessToken = jwt.sign(authData, env.AUTH_SECRET, {
+    expiresIn: env.ACCESS_TOKEN_LIFESPAN as StringValue,
+  });
+
+  log.info(`${user.username} refreshed session`, {
+    user: user.id,
+    sessionId: session.id,
+  });
+
+  return {
+    accessToken,
+    authData,
+    refreshToken: token.key,
+    sessionId: session.id,
+  };
+}
+
+export function generateAdminToken(userId: number | null = null) {
+  return jwt.sign(
+    {
+      userId: userId ?? -1,
+      role: "admin",
+      sessionId: -1,
+    }, // sessionId: session.id
+    env.AUTH_SECRET,
+    { expiresIn: "30m" },
+  );
+}
+
+function assignSessionInfo(sessionId: number, req: Request) {
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  return db.session.update({
+    where: {
+      id: sessionId,
+      userId: req.auth?.userId,
+    },
+    data: {
+      description: ip as string,
+    },
+  });
+}
+
+export async function auth(req: Request, res: Response, next: NextFunction) {
+  const refreshToken = req.headers["x-refresh-token"] || req.cookies["x-refresh-token"];
+  const accessToken =
+    req.headers["x-access-token"] ||
+    req.headers.authorization?.split(" ")[1] ||
+    req.cookies["x-access-token"] ||
+    null;
+
+  // console.log("U:", refreshToken, accessToken,
+  //   "\nH:", req.headers["x-refresh-token"], req.headers["x-access-token"],
+  //   "\nC:", req.cookies["x-refresh-token"], req.cookies["x-access-token"])
+
+  res.setHeader('Access-Control-Expose-Headers', 'X-Access-Token, X-Refresh-Token');
+
+  if (!accessToken && !refreshToken) return next();
+  if (Array.isArray(accessToken) || Array.isArray(refreshToken)) return next();
+
+  if (accessToken) {
+    try {
+      const authData = jwt.verify(accessToken, env.AUTH_SECRET);
+      if (!authData) throw new Error("Invalid or expired token");
+      const auth = UserAuthObjectSchema.parse(authData);
+      req.auth = auth;
+      return next();
+    } catch {
+      res.appendHeader("X-Auth-Error", "Invalid or expired access token");
+    }
+  }
+  if (refreshToken) {
+    const data = await validateSessionToken({ key: refreshToken });
+    if (!data) {
+      res.appendHeader("X-Auth-Error", "Invalid refresh token");
+      return next();
+    }
+    const session = await refreshSession(data.session);
+    if (!session) {
+      res.appendHeader("X-Auth-Error", "Session does not exist");
+      return next();
+    }
+    req.auth = session.authData;
+    res.appendHeader("X-Access-Token", session.accessToken);
+    res.appendHeader("X-Refresh-Token", session.refreshToken);
+    res.cookie("x-access-token", session.accessToken)
+    res.cookie("x-refresh-token", session.refreshToken)
+  }
+  return next();
+}
+
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.auth) {
+    return res.sendStatus(401);
+  }
+  return next();
+}
+
+const app: Router = Router();
+
+app.use(bodyParser.json({ limit: "1mb" }));
+app.use(bodyParser.urlencoded({ extended: true, limit: "1mb" }));
+
+app.use(basicLimiter);
 
 export const UserRegisterSchema = z.object({
   username: z
@@ -68,152 +256,6 @@ export const UserReturnSchema = z.object({
   role: z.string(),
 });
 
-const app: Router = Router();
-
-app.use(bodyParser.json({ limit: "1mb" }));
-app.use(bodyParser.urlencoded({ extended: true, limit: "1mb" }));
-
-app.use(basicLimiter);
-
-type SessionTokenObj = {
-  id: number;
-  createdAt: Date;
-  // updatedAt: Date;
-  expiresAt: Date;
-  userId: number;
-  sessionId: number;
-};
-
-async function refreshSession(sessionToken: SessionTokenObj) {
-  const res = await prisma.sessionToken.findUnique({
-    where: {
-      id: sessionToken.id,
-    },
-    select: {
-      user: true,
-      active: true,
-      session: true,
-    },
-  });
-  if (!res) throw new Error("Session not found");
-  const { user, active, session } = res;
-
-  if (!session.active) {
-    log.info("Invalidated session token used", {
-      user: user.id,
-      sessionTokenId: sessionToken.id,
-      sessionId: sessionToken.sessionId,
-      role: user.role,
-    });
-    return -1;
-  }
-
-  if (!active) {
-    log.warn("Refresh token reused", {
-      user: user.id,
-      sessionTokenId: sessionToken.id,
-      sessionId: sessionToken.sessionId,
-      role: user.role,
-    });
-    return -1;
-  }
-
-  await prisma.sessionToken.update({
-    where: {
-      id: sessionToken.id,
-    },
-    data: {
-      active: false,
-    },
-  });
-
-  return createNewSession(user, sessionToken.sessionId);
-}
-
-async function createNewSession(
-  user: UserObj,
-  sessionId: number | null = null
-) {
-  const accessExpiresAt = new Date(
-    Date.now() + ms(env.ACCESS_TOKEN_LIFESPAN as StringValue)
-  );
-  const refreshExpiresAt = new Date(
-    Date.now() + ms(env.REFRESH_TOKEN_LIFESPAN as StringValue)
-  );
-  if (sessionId === null) {
-    const session = await prisma.session.create({
-      data: {
-        userId: user.id,
-      },
-    });
-    sessionId = session.id;
-  }
-  const sessionToken = await prisma.sessionToken.create({
-    data: {
-      userId: user.id,
-      expiresAt: refreshExpiresAt,
-      sessionId,
-    },
-  });
-  const accesstoken = jwt.sign(
-    {
-      userId: user.id,
-      role: user.role,
-      sessionTokenId: sessionToken.id,
-      sessionId: sessionId,
-      type: "access",
-    }, // sessionId: session.id
-    env.AUTH_SECRET,
-    { expiresIn: env.ACCESS_TOKEN_LIFESPAN }
-  );
-  const refreshtoken = jwt.sign(
-    {
-      userId: user.id,
-      role: user.role,
-      sessionTokenId: sessionToken.id,
-      sessionId: sessionId,
-      type: "refresh",
-    },
-    env.AUTH_SECRET,
-    { expiresIn: env.REFRESH_TOKEN_LIFESPAN }
-  );
-  return {
-    sessionTokenId: sessionToken.id,
-    sessionId: sessionId,
-    accesstoken,
-    refreshtoken,
-    accessExpiresAt,
-    refreshExpiresAt,
-  };
-}
-
-export function generateAdminToken(userId: number | null = null) {
-  return jwt.sign(
-    {
-      userId: userId ?? -1,
-      role: "admin",
-      sessionTokenId: -1,
-      sessionId: -1,
-      type: "access",
-    }, // sessionId: session.id
-    env.AUTH_SECRET,
-    { expiresIn: "30m" }
-  );
-}
-
-function assignSessionInfo(sessionId: number, req: Request) {
-  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-  return prisma.session.update({
-    where: {
-      id: sessionId,
-      userId: req.auth?.userId,
-    },
-    data: {
-      description: ip as string,
-    },
-  });
-}
-
 app.post("/register", strictLimiter, async (req, res) => {
   try {
     const { data, success, error } = UserRegisterSchema.safeParse(req.body);
@@ -227,7 +269,7 @@ app.post("/register", strictLimiter, async (req, res) => {
     const { username: displayname, password, email } = data;
     const username = displayname.toLowerCase();
     log.info(`Attempted registration by ${username}`);
-    const existing_username = await prisma.user.findUnique({
+    const existing_username = await db.user.findUnique({
       where: {
         username: username,
       },
@@ -239,7 +281,7 @@ app.post("/register", strictLimiter, async (req, res) => {
       });
       return;
     }
-    const existing_email = await prisma.user.findUnique({
+    const existing_email = await db.user.findUnique({
       where: {
         email: email,
       },
@@ -252,111 +294,40 @@ app.post("/register", strictLimiter, async (req, res) => {
       return;
     }
 
-    const user_data = {
-      username,
-      displayname,
-      email,
-      password: "temp", // impossible temporary value
-      role: env.REGISTERED_USERS_LIMITED ? user_role.limited : user_role.user,
-    };
-    const user = await prisma.user.create({ data: user_data });
-    const hashed_password = await argon2.hash(
-      user.id + password + user.createdAt.toJSON()
-    );
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashed_password },
+    const hashed_password = await argon2.hash(password);
+    const user = await db.user.create({
+      data: {
+        username,
+        displayname,
+        email,
+        password: hashed_password,
+        role: env.REGISTERED_USERS_LIMITED ? user_role.limited : user_role.user,
+      },
     });
     const session = await createNewSession(user);
     log.info(`User ${username} registered`, {
       user: user.id,
-      sessionTokenId: session.sessionTokenId,
       sessionId: session.sessionId,
       role: user.role,
     });
+    res.appendHeader("X-Access-Token", session.accessToken);
+    res.appendHeader("X-Refresh-Token", session.refreshToken);
+    res.cookie("x-access-token", session.accessToken)
+    res.cookie("x-refresh-token", session.refreshToken)
     await assignSessionInfo(session.sessionId, req);
-    res.status(201).json({
+    return res.status(201).json({
       status: "ok",
       message: "Successfully registered user",
       data: {
         user: UserReturnSchema.parse(user),
-        session,
+        session: session,
       },
     });
   } catch (err) {
     log.error(`Register error: ${err}`);
-    res.status(500).json({
+    return res.status(500).json({
       status: "error",
       message: "An error has occurred when trying to complete request",
-    });
-  }
-});
-
-app.get("/refresh", strictLimiter, verifyToken, async (req, res) => {
-  try {
-    const { data: auth } = validateAuth(req.auth, "refresh");
-    if (!auth) {
-      res.status(403).json({
-        status: "error",
-        message: "Invalid auth token",
-      });
-      return;
-    }
-    const user = await prisma.user.findUnique({
-      where: {
-        id: auth.userId,
-      },
-    });
-    if (!user) {
-      res.status(404).json({
-        status: "error",
-        message: "User does not exist",
-      });
-      return;
-    }
-    const currentSessionToken = await prisma.sessionToken.findUnique({
-      where: {
-        id: auth.sessionTokenId,
-        expiresAt: {
-          gte: new Date(),
-        },
-      },
-    });
-    if (!currentSessionToken) {
-      res.status(403).json({
-        status: "error",
-        message: "Session does not exist or has expired",
-      });
-      return;
-    }
-    const session = await refreshSession(currentSessionToken);
-    if (session === -1) {
-      res.status(403).json({
-        status: "error",
-        message: "Invalid refresh token. Either reused or invalidated.",
-      });
-      return;
-    }
-    await assignSessionInfo(session.sessionId, req);
-    log.info(`User ${user.username} refreshed their session`, {
-      user: user.id,
-      sessionTokenId: session.sessionTokenId,
-      sessionId: session.sessionId,
-      role: user.role,
-    });
-    res.status(200).json({
-      status: "ok",
-      message: "Refreshed session",
-      data: {
-        user: UserReturnSchema.parse(user),
-        session,
-      },
-    });
-  } catch (err) {
-    log.error(`Refresh error: ${err}`, { user: req.auth?.userId ?? -1 });
-    res.status(500).json({
-      status: "error",
-      message: "An error has occurred when trying to refresh session",
     });
   }
 });
@@ -374,18 +345,11 @@ app.post("/login", strictLimiter, async (req, res) => {
     const { username: displayname, password } = data;
     const username = displayname.toLowerCase();
     log.info(`Attempted login as ${username}`);
-    let user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: {
         username: username,
       },
     });
-    if (!user) {
-      user = await prisma.user.findUnique({
-        where: {
-          email: username,
-        },
-      });
-    }
     if (!user) {
       res.status(404).json({
         status: "error",
@@ -393,12 +357,7 @@ app.post("/login", strictLimiter, async (req, res) => {
       });
       return;
     }
-    if (
-      !(await argon2.verify(
-        user.password,
-        user.id + password + user.createdAt.toJSON()
-      ))
-    ) {
+    if (!(await argon2.verify(user.password, password))) {
       res.status(400).json({
         status: "error",
         message: "Invalid password",
@@ -407,6 +366,10 @@ app.post("/login", strictLimiter, async (req, res) => {
       return;
     }
     const session = await createNewSession(user);
+    res.appendHeader("X-Access-Token", session.accessToken);
+    res.appendHeader("X-Refresh-Token", session.refreshToken);
+    res.cookie("x-access-token", session.accessToken)
+    res.cookie("x-refresh-token", session.refreshToken)
     await assignSessionInfo(session.sessionId, req);
     res.status(200).json({
       status: "ok",
@@ -418,7 +381,6 @@ app.post("/login", strictLimiter, async (req, res) => {
     });
     log.info(`User ${username} logged in`, {
       user: user.id,
-      sessionTokenId: session.sessionTokenId,
       sessionId: session.sessionId,
       role: user.role,
     });
@@ -431,17 +393,14 @@ app.post("/login", strictLimiter, async (req, res) => {
   }
 });
 
-app.post("/logout", verifyToken, async (req, res) => {
+app.post("/logout", requireAuth, async (req, res) => {
   try {
-    const { data: auth } = validateAuth(req.auth);
+    const auth = req.auth;
     if (!auth) {
-      res.status(403).json({
-        status: "error",
-        message: "Invalid auth token",
-      });
+      res.sendStatus(401);
       return;
     }
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: {
         id: auth.userId,
       },
@@ -453,7 +412,7 @@ app.post("/logout", verifyToken, async (req, res) => {
       });
       return;
     }
-    const currentSession = await prisma.session.findUnique({
+    const currentSession = await db.session.findUnique({
       where: {
         id: auth.sessionId,
       },
@@ -464,28 +423,31 @@ app.post("/logout", verifyToken, async (req, res) => {
         message: "Session does not exist",
       });
       return;
-    } else {
-      await prisma.sessionToken.update({
-        where: {
-          id: auth.sessionTokenId,
-        },
-        data: {
-          active: false,
-        },
-      });
-      await prisma.session.update({
-        where: {
-          id: currentSession.id,
-        },
-        data: {
-          active: false,
-        },
-      });
     }
+
+    await db.sessionToken.updateMany({
+      where: {
+        sessionId: currentSession.id,
+      },
+      data: {
+        active: false,
+      },
+    });
+    await db.session.update({
+      where: {
+        id: currentSession.id,
+      },
+      data: {
+        active: false,
+      },
+    });
+
+    res.appendHeader("X-Access-Token", "");
+    res.appendHeader("X-Refresh-Token", "");
+
     log.info(`User ${user.username} logged out`, {
       user: user.id,
       sessionId: auth.sessionId,
-      sessionTokenId: auth.sessionTokenId,
     });
     res.status(200).json({
       status: "ok",
@@ -512,28 +474,22 @@ app.patch("/user", async (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  const authHeader = req.header("Authorization");
-  const token = authHeader?.split(" ")?.at(1);
-  if (!token) {
-    res.status(401).json({ user: null, role: null });
+  const auth = req.auth
+  if (!auth) {
+    res.status(401).send("")
     return;
   }
   try {
-    const decoded: JwtPayload = jwt.verify(
-      token,
-      env.AUTH_SECRET
-    ) as JwtPayload;
-    const { userId, role } = decoded;
-    res.status(200).json({ user: userId, role: role });
+    res.status(200).json(auth);
   } catch {
-    res.status(401).json({ user: null, role: null });
+    res.status(401).send("")
     return;
   }
 });
 
-app.get("/self", verifyToken, async (req, res) => {
+app.get("/self", requireAuth, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
+    const user = await db.user.findUnique({
       where: {
         id: req.auth?.userId ?? 0,
       },
@@ -556,7 +512,6 @@ app.get("/self", verifyToken, async (req, res) => {
     });
     log.error(`An error occured on /self Err: ${err}`, {
       user: req.auth?.userId,
-      sessionTokenId: req.auth?.sessionTokenId,
       sessionId: req.auth?.sessionId,
       role: req.auth?.role,
     });
@@ -565,78 +520,21 @@ app.get("/self", verifyToken, async (req, res) => {
 
 export default app;
 
-interface JwtPayload {
-  userId: number;
-  role: user_role;
-  sessionTokenId: number;
-  sessionId: number;
-  type: string;
-}
-
 export const UserAuthObjectSchema = z.object({
   userId: z.number().int(),
   role: z.nativeEnum(user_role),
-  sessionTokenId: z.number().int(),
   sessionId: z.number().int(),
-  type: z.enum(["access", "refresh"]),
 });
-
-export function validateAuth(
-  auth: unknown,
-  type: "access" | "refresh" = "access"
-) {
-  return UserAuthObjectSchema.refine((auth) => auth.type === type).safeParse(
-    auth
-  );
-}
-
-export function verifyToken(
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void {
-  const authHeader = req.header("Authorization");
-  const token = authHeader?.split(" ")?.at(1);
-  if (!authHeader || !token) {
-    res.status(401).json({
-      status: "error",
-      message: "You must be authorized to access this route",
-    });
-    return;
-  }
-  try {
-    const decoded: JwtPayload = jwt.verify(
-      token,
-      env.AUTH_SECRET
-    ) as JwtPayload;
-    const { userId, role, sessionTokenId, sessionId, type } = decoded;
-    req.auth = {
-      userId,
-      role,
-      sessionTokenId,
-      sessionId,
-      type,
-    } as UserAuthObject;
-    next();
-  } catch {
-    res.status(401).json({
-      status: "error",
-      message: "Invalid auth token",
-    });
-    return;
-  }
-}
 
 export function requireAdmin(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ): void {
   if (req.auth?.role !== user_role.admin) {
     log.warn("Admin request from a non-admin user", {
       user: req.auth?.userId,
       sessionId: req.auth?.sessionId,
-      sessionTokenId: req.auth?.sessionTokenId,
       role: req.auth?.role,
     });
     res.status(401).json({

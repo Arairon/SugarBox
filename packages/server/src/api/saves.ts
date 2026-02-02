@@ -1,11 +1,11 @@
 import express, { Router } from "express";
-import prisma from "../db.js";
-import log from "../logger.js";
-import { basicLimiter, validateAuth } from "./auth.js";
+import log from "../logger";
+import { basicLimiter } from "./auth";
 // import crypto from "crypto";
 import { z } from "zod";
 // import zlib from "zlib";
-import { formatZodIssue } from "../utils.js";
+import { formatZodIssue } from "../utils";
+import { db } from "@/db";
 
 const app: Router = Router();
 
@@ -60,7 +60,7 @@ app.post("/new", async (req, res) => {
     });
     return;
   }
-  const { data: auth } = validateAuth(req.auth);
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -71,7 +71,7 @@ app.post("/new", async (req, res) => {
   try {
     save.ownerId = auth.userId;
     save.size = save.data.length;
-    const createdSave = await prisma.save.create({
+    const createdSave = await db.save.create({
       data: save,
     });
     res.status(200).json({
@@ -81,7 +81,6 @@ app.post("/new", async (req, res) => {
     });
     log.debug(`User created a new save`, {
       user: auth.userId,
-      sessionTokenId: auth.sessionTokenId,
       sessionId: auth.sessionId,
     });
   } catch (err) {
@@ -91,14 +90,13 @@ app.post("/new", async (req, res) => {
     });
     log.error(`Error occurred on save addition. Err: ${err}`, {
       user: auth.userId,
-      sessionTokenId: auth.sessionTokenId,
       sessionId: auth.sessionId,
     });
   }
 });
 
 const SaveUpdSchema = SaveSchema.omit({ data: true }).merge(
-  z.object({ data: z.string().optional() })
+  z.object({ data: z.string().optional() }),
 );
 
 app.get("/uuid/:saveId", async (req, res) => {
@@ -112,7 +110,7 @@ app.get("/uuid/:saveId", async (req, res) => {
   }
 
   const saveId = uuidParse.data;
-  const save = await prisma.char.findUnique({
+  const save = await db.char.findUnique({
     where: {
       uuid: saveId,
       ownerId: req.auth?.userId,
@@ -143,7 +141,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
   }
   const saveId = uuidParse.data;
 
-  const { data: auth } = validateAuth(req.auth);
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -168,7 +166,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
   try {
     saveData.ownerId = auth.userId;
     if (saveData.data) saveData.size = saveData.data.length;
-    const save = await prisma.save.upsert({
+    const save = await db.save.upsert({
       where: {
         uuid: saveId,
         ownerId: auth.userId,
@@ -188,7 +186,6 @@ app.patch("/uuid/:saveId", async (req, res) => {
     });
     log.error(`Error occurred on save patch. Err: ${err}`, {
       user: auth.userId,
-      sessionTokenId: auth.sessionTokenId,
       sessionId: auth.sessionId,
     });
   }
@@ -205,7 +202,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
   }
   const saveId = uuidParse.data;
 
-  const { data: auth } = validateAuth(req.auth);
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -215,7 +212,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
   }
 
   try {
-    await prisma.save.delete({
+    await db.save.delete({
       where: {
         uuid: saveId,
         ownerId: auth.userId,
@@ -233,7 +230,6 @@ app.patch("/uuid/:saveId", async (req, res) => {
     });
     log.error(`Error occurred on save deletion. Err: ${err}`, {
       user: auth.userId,
-      sessionTokenId: auth.sessionTokenId,
       sessionId: auth.sessionId,
     });
   }
@@ -258,7 +254,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 //     return;
 //   }
 //   try {
-//     const saveObj = await prisma.save.create({
+//     const saveObj = await db.save.create({
 //       data: {
 //         ownerId: req.auth?.userId ?? -1,
 //         name,
@@ -294,7 +290,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 //   }
 //   const gameId = parseInt(req.params.gameId);
 
-//   const saves = await prisma.save.findMany({
+//   const saves = await db.save.findMany({
 //     where: {
 //       ownerId: req.auth?.userId,
 //       gameId: gameId,
@@ -305,7 +301,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 // });
 
 // app.get("/user", async (req, res) => {
-//   const saves = await prisma.save.findMany({
+//   const saves = await db.save.findMany({
 //     where: {
 //       ownerId: req.auth?.userId,
 //     },
@@ -326,7 +322,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 //     return;
 //   }
 //   const userId = parseInt(req.params.userId);
-//   const saves = await prisma.save.findMany({
+//   const saves = await db.save.findMany({
 //     where: {
 //       ownerId: userId,
 //     },
@@ -348,7 +344,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 //   }
 //   const saveId = parseInt(req.params.saveId);
 
-//   const save = await prisma.save.findUnique({
+//   const save = await db.save.findUnique({
 //     where: {
 //       id: saveId,
 //     },
@@ -393,7 +389,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 //   if (charId !== undefined) updateData.charId = parseInt(charId);
 //   if (archived !== undefined) updateData.archived = !!archived;
 //   try {
-//     await prisma.save.update({
+//     await db.save.update({
 //       where: {
 //         ownerId: req.auth?.userId,
 //         id: saveId,
@@ -422,7 +418,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 //   }
 //   const saveId = parseInt(req.params.saveId);
 //   try {
-//     await prisma.save.delete({
+//     await db.save.delete({
 //       where: {
 //         ownerId: req.auth?.userId,
 //         id: saveId,

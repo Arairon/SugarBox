@@ -1,11 +1,11 @@
 import express, { Router } from "express";
-import prisma from "../db.js";
-import log from "../logger.js";
+import log from "../logger";
 import { RefinementCtx, z } from "zod";
 // import { zu } from "zod_utilz";
-import { basicLimiter, validateAuth } from "./auth.js";
-import { formatZodIssue } from "../utils.js";
-//import { requireAdmin } from "./auth.js";
+import { basicLimiter } from "./auth";
+import { formatZodIssue } from "../utils";
+import { db } from "@/db";
+//import { requireAdmin } from "./auth";
 
 const app: Router = Router();
 
@@ -13,7 +13,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(basicLimiter);
 
 app.get("/", async (req, res) => {
-  const chars = await prisma.char.findMany({
+  const chars = await db.char.findMany({
     where: {
       ownerId: req.auth?.userId,
     },
@@ -32,7 +32,7 @@ app.get("/uuid/:charId", async (req, res) => {
   }
 
   const charId = uuidParse.data;
-  const char = await prisma.char.findUnique({
+  const char = await db.char.findUnique({
     where: {
       uuid: charId,
       ownerId: req.auth?.userId,
@@ -143,7 +143,7 @@ app.post("/new", async (req, res) => {
     });
     return;
   }
-  const { data: auth } = validateAuth(req.auth);
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -153,7 +153,7 @@ app.post("/new", async (req, res) => {
   }
   try {
     char.ownerId = auth.userId;
-    const createdChar = await prisma.char.create({
+    const createdChar = await db.char.create({
       data: char,
     });
     log.info(`User (${auth.userId}) created a new character`);
@@ -168,7 +168,7 @@ app.post("/new", async (req, res) => {
       message: "An error has occurred when adding a new character",
     });
     log.error(
-      `Error occurred on char addition by ${req.auth?.userId}. Err: ${err}`
+      `Error occurred on char addition by ${req.auth?.userId}. Err: ${err}`,
     );
   }
 });
@@ -183,7 +183,7 @@ app.patch("/uuid/:charId", async (req, res) => {
     return;
   }
   const charId = uuidParse.data;
-  const { data: auth } = validateAuth(req.auth);
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -207,7 +207,7 @@ app.patch("/uuid/:charId", async (req, res) => {
 
   try {
     charData.ownerId = auth.userId;
-    const char = await prisma.char.upsert({
+    const char = await db.char.upsert({
       where: {
         uuid: charId,
         ownerId: auth.userId ?? 0,
@@ -226,7 +226,7 @@ app.patch("/uuid/:charId", async (req, res) => {
       message: "An error has occurred when changing a character",
     });
     log.error(
-      `Error occurred on char patch by ${req.auth?.userId}. Err: ${err}`
+      `Error occurred on char patch by ${req.auth?.userId}. Err: ${err}`,
     );
   }
 });
@@ -241,7 +241,7 @@ app.delete("/uuid/:charId", async (req, res) => {
     return;
   }
   const charId = uuidParse.data;
-  const { data: auth } = validateAuth(req.auth);
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -250,7 +250,7 @@ app.delete("/uuid/:charId", async (req, res) => {
     return;
   }
   try {
-    // await prisma.char.update({
+    // await db.char.update({
     //   where: {
     //     uuid: charId,
     //     ownerId: auth.userId ?? 0,
@@ -260,7 +260,7 @@ app.delete("/uuid/:charId", async (req, res) => {
     //     archivedAt: new Date()
     //   }
     // });
-    await prisma.char.delete({
+    await db.char.delete({
       where: {
         uuid: charId,
         ownerId: auth.userId ?? 0,
@@ -277,7 +277,7 @@ app.delete("/uuid/:charId", async (req, res) => {
       message: "An error has occurred when deleting a character",
     });
     log.error(
-      `Error occurred on char deletion by ${req.auth?.userId}. Err: ${err}`
+      `Error occurred on char deletion by ${req.auth?.userId}. Err: ${err}`,
     );
   }
 });

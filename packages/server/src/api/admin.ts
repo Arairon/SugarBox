@@ -1,16 +1,11 @@
 import argon2 from "argon2";
 import bodyParser from "body-parser";
 import { Router } from "express";
-import {
-  basicLimiter,
-  generateAdminToken,
-  validateAuth,
-  verifyToken,
-} from "./auth";
-import prisma from "../db";
+import { basicLimiter, generateAdminToken, requireAuth } from "./auth";
+import { db } from "@/db";
 import { user_role } from "@prisma/client";
 import { z } from "zod";
-import log from "../logger.js";
+import log from "../logger";
 
 const app: Router = Router();
 
@@ -18,8 +13,8 @@ app.use(bodyParser.json({ limit: "1mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "1mb" }));
 app.use(basicLimiter);
 
-app.get("/users", verifyToken, async (req, res) => {
-  const { data: auth } = validateAuth(req.auth);
+app.get("/users", requireAuth, async (req, res) => {
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -36,16 +31,15 @@ app.get("/users", verifyToken, async (req, res) => {
   }
   log.info("[A] Listed all users", {
     user: auth.userId,
-    sessionTokenId: auth.sessionTokenId,
     sessionId: auth.sessionId,
     role: auth.role,
   });
-  const users = await prisma.user.findMany();
+  const users = await db.user.findMany();
   res.status(200).json(users);
 });
 
 app.post("/resetPassword/:userId", async (req, res) => {
-  const { data: auth } = validateAuth(req.auth);
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -73,7 +67,7 @@ app.post("/resetPassword/:userId", async (req, res) => {
     });
     return;
   }
-  const user = await prisma.user.findUnique({
+  const user = await db.user.findUnique({
     where: { id },
   });
   if (!user) {
@@ -84,15 +78,14 @@ app.post("/resetPassword/:userId", async (req, res) => {
     return;
   }
   const hashed_password = await argon2.hash(
-    user.id + data.password + user.createdAt.toJSON()
+    user.id + data.password + user.createdAt.toJSON(),
   );
-  await prisma.user.update({
+  await db.user.update({
     where: { id: user.id },
     data: { password: hashed_password },
   });
   log.info(`[A] Updated ${user.username}#${user.id}'s password`, {
     user: auth.userId,
-    sessionTokenId: auth.sessionTokenId,
     sessionId: auth.sessionId,
     role: auth.role,
   });
@@ -103,8 +96,8 @@ app.post("/resetPassword/:userId", async (req, res) => {
   });
 });
 
-app.get("/token", verifyToken, async (req, res) => {
-  const { data: auth } = validateAuth(req.auth);
+app.get("/token", requireAuth, async (req, res) => {
+  const auth = req.auth;
   if (!auth) {
     res.status(403).json({
       status: "error",
@@ -121,7 +114,6 @@ app.get("/token", verifyToken, async (req, res) => {
   }
   log.info("[A] Generated a new admin token", {
     user: auth.userId,
-    sessionTokenId: auth.sessionTokenId,
     sessionId: auth.sessionId,
     role: auth.role,
   });
