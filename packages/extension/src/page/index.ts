@@ -89,14 +89,13 @@ async function processRequest(req: SugarBoxPageRequest) {
 
 
 function eventHandler(ev: CustomEvent) {
-  console.debug(`SugarBox Pagescript for ${document.title}@${document.location.host} received ${JSON.stringify(ev.detail)}`)
-
   if (!isObject(ev.detail) || !("cmd" in ev.detail)) {
     console.error(`SugarBox Pagescript invalid command: ${JSON.stringify(ev.detail)}`)
     return
   }
-
   const request = ev.detail as SugarBoxPageRequest;
+  console.debug(`SugarBox Pagescript for ${document.title}@${document.location.host} received ${request.cmd}`)
+
   processRequest(request).then(data => {
     if (request.id) {
       window.dispatchEvent(new CustomEvent("SugarBox_From_Page", {

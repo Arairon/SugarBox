@@ -1,6 +1,6 @@
 import { ProtocolWithReturn } from "webext-bridge"
 import type { SugarBoxState } from "@/background/logic/state"
-import type { CharObj, GameObj } from "./types"
+import type { CharObj, GameObj, SaveObj } from "./types"
 
 declare module "webext-bridge" {
   export interface ProtocolMap {
@@ -12,5 +12,9 @@ declare module "webext-bridge" {
     bg_game_archive: ProtocolWithReturn<GameObj, { ok: true, affectedChars: number, affectedSaves: number } | { ok: false, message: string }>
     bg_char_edit: ProtocolWithReturn<CharObj, { ok: true, char: CharObj } | { ok: false, message: string }>
     bg_char_archive: ProtocolWithReturn<CharObj, { ok: true, affectedSaves: number } | { ok: false, message: string }>
+    bg_save_edit: ProtocolWithReturn<SaveObj, { ok: true, save: SaveObj } | { ok: false, message: string }>
+    bg_save_archive: ProtocolWithReturn<SaveObj, { ok: true } | { ok: false, message: string }>
+    bg_save_new: ProtocolWithReturn<undefined | number, { ok: true, save: SaveObj } | { ok: false, message: string }>
+    bg_save_load: ProtocolWithReturn<SaveObj, { ok: true } | { ok: false, message: string }>
   }
 }
