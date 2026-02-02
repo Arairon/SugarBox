@@ -1,14 +1,98 @@
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { Button } from "@/shared/components/ui/button";
 import { useSugarBoxState } from "../lib/state";
-import { pages } from "../pages/pagesIndex";
+import { CloudOffIcon, GlobeIcon, GlobeLockIcon, HardDriveIcon, LogInIcon, LogOutIcon, User2Icon, UserPlus2Icon, WrenchIcon } from "lucide-react";
+import { Switch } from "@/shared/components/ui/switch";
+
+function UserMenu() {
+  const { user, setPage, page } = useSugarBoxState()
+  const username = user.id ? user.displayname : "Not logged in"
+  let statusIcon;
+  let statusDescription;
+  let statusDescriptionExtra;
+  if (user.id && user.onlineMode) {
+    if (user.onlineMode && user.online) {
+      if (user.role !== "limited") {
+        statusIcon = <GlobeIcon />
+        statusDescription = "Online"
+      } else {
+        statusIcon = <GlobeLockIcon />
+        statusDescription = "Online (limited)"
+        statusDescriptionExtra = "Your account is unable to use cloud functionality"
+      }
+    } else {
+      statusIcon = <CloudOffIcon />
+      statusDescription = "Offline (unable to connect)"
+      statusDescriptionExtra = user.offlineReason
+    }
+  } else {
+    statusIcon = <HardDriveIcon />
+    statusDescription = user.onlineMode ? "Offline" : "Offline mode (manual)"
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex cursor-pointer flex-row items-center justify-center gap-2
+border-x-2 border-cyan-700 px-2 font-mono hover:border-cyan-500 hover:bg-background/20" >
+        <a className="max-w-32 grow truncate">{username}</a>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {statusIcon}
+          </TooltipTrigger>
+          <TooltipContent className="border-1 bg-slate-900 text-white">
+            <p>{statusDescription}</p>
+            {statusDescriptionExtra && <p className='text-xs text-gray-400'>{statusDescriptionExtra}</p>}
+          </TooltipContent>
+        </Tooltip>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuItem onClick={(e) => {
+          e.preventDefault()
+          // Toggle online mode
+        }}>
+          <a className='grow'>Online</a> <Switch checked={user.onlineMode} />
+        </DropdownMenuItem>
+
+        {user.id ? (
+          <>
+            <DropdownMenuItem onClick={() => { setPage("account") }}>
+              <User2Icon /> Account
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
+              if (page === "account") setPage("home")
+            }
+            }>
+              <LogOutIcon className='rotate-180' /> Log Out
+            </DropdownMenuItem>
+          </>
+        ) : (
+          <>
+            <DropdownMenuItem onClick={() => setPage("login")}>
+              <LogInIcon /> Log In
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setPage("register")}>
+              <UserPlus2Icon /> Register
+            </DropdownMenuItem>
+          </>
+        )}
+
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 export function Footer() {
-  const {setPage} = useSugarBoxState()
+  const { setPage, page } = useSugarBoxState()
 
   return (
     <footer className='flex h-10 flex-row border-t-3 border-double border-header-border bg-header px-2'>
-      {Object.keys(pages).map(page=><Button key={page} onClick={()=>setPage(page as keyof typeof pages)}>{page}</Button>)}
-      
+      <Button variant={"ghost"} onClick={() => setPage(page === "utils" ? "home" : "utils")}
+        className="rounded-none border-x-2 border-cyan-700 hover:border-cyan-500 hover:bg-background/30">
+        <WrenchIcon />
+      </Button>
+      <div className="flex-1"></div>
+      <UserMenu />
     </footer>
   );
 }

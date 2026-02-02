@@ -1,15 +1,15 @@
-import type { UserObj, GameObj, CharObj } from "@/shared/types"
+import { type UserObj, type GameObj, type CharObj, createEmptyUserObject } from "@/shared/types"
 import {onMessage} from "webext-bridge/background"
 
 export type SugarBoxState = {
-  user: UserObj | null
+  user: UserObj
   game: GameObj | null
   char: CharObj | null
   tabId: number
 }
 
 export const state: SugarBoxState = {
-  user: null,
+  user: createEmptyUserObject(),
   game: null,
   char: null,
   tabId: 0

@@ -1,24 +1,24 @@
-import type { CharObj, GameObj, UserObj } from "@/shared/types";
+import { createEmptyUserObject, type CharObj, type GameObj, type UserObj } from "@/shared/types";
 import { create } from "zustand";
 import { pages } from "../pages/pagesIndex";
 import { sendMessage } from "webext-bridge/popup";
 
 interface SugarBoxState {
   page: keyof typeof pages;
-  user: UserObj | null
+  user: UserObj
   game: GameObj | null
   char: CharObj | null
 
   setPage: (page: keyof typeof pages) => void
-  setUser: (user: UserObj | null) => void
+  setUser: (user: UserObj) => void
   setGame: (game: GameObj | null) => void
   setChar: (char: CharObj | null) => void
-  set: (user: UserObj | null, game: GameObj | null, char: CharObj | null) => void
+  set: (user: UserObj, game: GameObj | null, char: CharObj | null) => void
 }
 
 export const useSugarBoxState = create<SugarBoxState>()((set) => ({
   page: "home",
-  user: null,
+  user: createEmptyUserObject(),
   game: null,
   char: null,
 
