@@ -17,14 +17,14 @@ app.get("/users", requireAuth, async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
   }
   if (auth.role !== user_role.admin) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "You are not authorized to access this route",
     });
     return;
@@ -42,14 +42,14 @@ app.post("/resetPassword/:userId", async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
   }
   if (auth.role !== user_role.admin) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "You are not authorized to access this route",
     });
     return;
@@ -62,7 +62,7 @@ app.post("/resetPassword/:userId", async (req, res) => {
     .safeParse(req.body);
   if (!idOk || !passOk) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "Invalid userId or password",
     });
     return;
@@ -72,7 +72,7 @@ app.post("/resetPassword/:userId", async (req, res) => {
   });
   if (!user) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "User not found",
     });
     return;
@@ -91,7 +91,7 @@ app.post("/resetPassword/:userId", async (req, res) => {
   });
 
   res.status(200).json({
-    status: "ok",
+    ok: true,
     message: "Updated password",
   });
 });
@@ -100,14 +100,14 @@ app.get("/token", requireAuth, async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
   }
   if (auth.role !== user_role.admin) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "You are not authorized to access this route",
     });
     return;

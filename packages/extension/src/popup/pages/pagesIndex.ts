@@ -4,15 +4,21 @@ import Debug from "./Debug.tsx"
 import Games from "./Games.tsx"
 import GameEditor from "./GameEditor.tsx"
 import Utils from "./Utils.tsx"
+import Account from "./Account/Account.tsx"
+import Login from "./Account/Login.tsx"
+import Register from "./Account/Register.tsx"
 
 export const pages = {
   home: Home,
   debug: Debug,
-  error: Error,
   games: Games,
-  gameEditor: GameEditor,
+} as const
+
+export const nonActivityPages = {
   utils: Utils,
-  account: Error,
-  login: Error,
-  register: Error
+  gameEditor: GameEditor,
+  account: Account,
+  login: Login,
+  register: Register,
+  error: Error,
 } as const

@@ -1,7 +1,8 @@
 import z from "zod";
 
 const ConfigSchema = z.object({
-  baseURL: z.url().trim().endsWith("/", "baseURL must end with a '/'").default("https://sugarbox.arai.icu/")
+  baseURL: z.url().trim().endsWith("/", "baseURL must end with a '/'").default("https://sugarbox.arai.icu/"),
+  syncDelay: z.number().default(5_000)
 })
 type Config = z.infer<typeof ConfigSchema>
 

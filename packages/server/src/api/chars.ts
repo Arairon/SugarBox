@@ -25,7 +25,7 @@ app.get("/uuid/:charId", async (req, res) => {
   const uuidParse = z.string().uuid().safeParse(req.params.charId);
   if (!uuidParse.success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "Invalid uuid",
     });
     return;
@@ -40,13 +40,13 @@ app.get("/uuid/:charId", async (req, res) => {
   });
   if (!char) {
     res.status(404).json({
-      status: "error",
+      ok: false,
       message: "Character not found",
     });
     return;
   }
   res.status(200).json({
-    status: "ok",
+    ok: true,
     message: "Retrieved character",
     data: char,
   });
@@ -138,7 +138,7 @@ app.post("/new", async (req, res) => {
   } = CharSchema.omit({ id: true }).safeParse(req.body);
   if (!success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: error.errors.map(formatZodIssue),
     });
     return;
@@ -146,7 +146,7 @@ app.post("/new", async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
@@ -158,13 +158,13 @@ app.post("/new", async (req, res) => {
     });
     log.info(`User (${auth.userId}) created a new character`);
     res.status(200).json({
-      status: "ok",
+      ok: true,
       message: "Created a new character",
       data: createdChar,
     });
   } catch (err) {
     res.status(500).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when adding a new character",
     });
     log.error(
@@ -177,7 +177,7 @@ app.patch("/uuid/:charId", async (req, res) => {
   const uuidParse = z.string().uuid().safeParse(req.params.charId);
   if (!uuidParse.success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "Invalid uuid",
     });
     return;
@@ -186,7 +186,7 @@ app.patch("/uuid/:charId", async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
@@ -199,7 +199,7 @@ app.patch("/uuid/:charId", async (req, res) => {
   } = CharSchema.omit({ id: true }).safeParse(req.body);
   if (!success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: error.errors.map(formatZodIssue),
     });
     return;
@@ -216,13 +216,13 @@ app.patch("/uuid/:charId", async (req, res) => {
       create: charData,
     });
     res.status(200).json({
-      status: "ok",
+      ok: true,
       message: "Character updated",
       data: char,
     });
   } catch (err) {
     res.status(500).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when changing a character",
     });
     log.error(
@@ -235,7 +235,7 @@ app.delete("/uuid/:charId", async (req, res) => {
   const uuidParse = z.string().uuid().safeParse(req.params.charId);
   if (!uuidParse.success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "Invalid uuid",
     });
     return;
@@ -244,7 +244,7 @@ app.delete("/uuid/:charId", async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
@@ -267,13 +267,13 @@ app.delete("/uuid/:charId", async (req, res) => {
       },
     });
     res.status(200).json({
-      status: "ok",
+      ok: true,
       message: "Character deleted",
     });
     log.info(`User (${auth.userId}) deleted a character`);
   } catch (err) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when deleting a character",
     });
     log.error(

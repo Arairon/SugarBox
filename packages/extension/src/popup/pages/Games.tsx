@@ -7,9 +7,47 @@ import { Button } from "@/shared/components/ui/button";
 import { ArrowLeftIcon, ArrowRightIcon, EditIcon, PlusIcon, StepForwardIcon } from "lucide-react";
 import { useState } from "react";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu"
+import { toast } from "sonner";
 
 
-function GamesListElement({ game }: { game: GameObj }) {
+function GameLaunchButton({ game }: { game: GameObj }) {
+  if (game.paths.length === 1)
+    return (
+      <Button variant={"outline"} className="rounded-l-none" onClick={() => {
+        chrome.tabs.create({ url: game.paths[0].url })
+      }}>
+        <StepForwardIcon />
+      </Button>
+    )
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant={"outline"} className="rounded-l-none">
+          <StepForwardIcon />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        {game.paths.map((path) =>
+          <DropdownMenuItem onClick={() => chrome.tabs.create({ url: path.url })}>
+            {path.name ? (
+              <>{path.name}</>
+            ) : (
+              <>{path.url.length > 30 ? path.url.slice(0, 27) + "..." : path.url}</>
+            )}
+          </DropdownMenuItem>
+        )}
+        {game.paths.length === 1 && (
+          <DropdownMenuItem>
+            No paths found
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function GamesListElement({ game, isCurrentGame }: { game: GameObj, isCurrentGame?: boolean }) {
   const { open: openEditor } = useGameEditorState()
   return (
     <div className="flex items-center rounded-lg px-2 py-1 transition-colors hover:bg-foreground/10">
@@ -18,9 +56,17 @@ function GamesListElement({ game }: { game: GameObj }) {
       <Button variant="outline" className="rounded-r-none" onClick={() => openEditor(game)}>
         <EditIcon />
       </Button>
-      <Button variant="outline" className="rounded-l-none">
-        <StepForwardIcon />
-      </Button>
+      {
+        isCurrentGame ? (
+          <Button variant={"outline"} className="rounded-l-none" onClick={() => {
+            toast("You are already here!", {duration: 1500})
+          }}>
+            <StepForwardIcon />
+          </Button>
+        ) : (
+          <GameLaunchButton game={game} />
+        )
+      }
     </div>
   )
 }
@@ -67,7 +113,7 @@ export default function Games() {
       </div>
       <div className="min-h-0 flex-1">
         <ScrollArea className="flex h-full flex-col items-stretch gap-1 pb-2">
-          {game && <GamesListElement game={game} />}
+          {game && <GamesListElement game={game} isCurrentGame />}
           {games.filter(i => i.id !== game?.id).map(game => <GamesListElement game={game} key={game.id} />)}
           {games.length === 0 && <GamesListEmptyPlaceholder />}
           {((games.length === pageSize || pageNumber > 0) && gamesCount > pageSize) &&

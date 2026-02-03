@@ -3,6 +3,8 @@ import { db } from "./db";
 import { state } from "./state"
 import { onMessage } from "webext-bridge/background";
 import { Save } from "./save";
+import z from "zod";
+import { Sync } from "./sync";
 
 const latestCharMap: Record<number, number> = {}; // GameID: CharID
 
@@ -48,6 +50,58 @@ async function switchTo(char: CharObj | null) {
 
 onMessage("bg_change_char", ({ data }) => switchTo(data as CharObj | null))
 
+
+export const CharUploadSchema = z.object({
+  uuid: z.uuid(),
+  name: z.string(),
+  gameId: z.uuid(),
+  slots: z
+    .array(z.union([z.uuid(), z.literal("")]))
+    .transform((p) => JSON.stringify(p)),
+  archived: z.coerce.boolean(),
+  archivedAt: z.coerce.date().default(new Date(0)),
+  updatedAt: z.coerce.date().default(() => new Date()),
+  createdAt: z.coerce.date().default(() => new Date()),
+});
+
+export type CharUploadObject = z.infer<typeof CharUploadSchema>
+
+export const CharDownloadSchema = z
+  .object({
+    id: z.number(),
+    uuid: z.uuid(),
+    remoteId: z.any().transform(() => -1),
+    name: z.string(),
+    gameId: z.uuid(),
+    slots: z
+      .string()
+      .transform((slots) =>
+        z
+          .array(z.union([z.uuid(), z.literal("")]))
+          .parse(JSON.parse(slots))
+      ),
+    archived: z.boolean().transform((v) => Number(v) as 0 | 1),
+    archivedAt: z.coerce.date().transform((v) => v.getTime()),
+    updatedAt: z.coerce.date().transform((v) => v.getTime()),
+    createdAt: z.coerce.date().transform((v) => v.getTime()),
+  })
+  .transform((c) => {
+    c.remoteId = c.id;
+    c.id = -1
+    return c
+  });
+
+export type CharDownloadObject = z.infer<typeof CharDownloadSchema>
+
+
+function prepareForUpload(char: CharObj) {
+  return CharUploadSchema.parse(char)
+}
+
+function parseDownloaded(char: unknown) {
+  return CharDownloadSchema.parse(char)
+}
+
 async function commit(char: CharObj) {
   char.updatedAt = Date.now()
   if (char.id === -1) {
@@ -61,6 +115,8 @@ async function commit(char: CharObj) {
   if (state.char?.archived) {
     await switchTo(null)
   }
+
+  Sync.scheduleSync()
   return char
 }
 
@@ -132,5 +188,7 @@ export const Char = {
   switchTo,
   archive,
   commit,
-  getSaves
+  getSaves,
+  prepareForUpload,
+  parseDownloaded
 }

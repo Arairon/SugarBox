@@ -8,7 +8,6 @@ import jwt from "jsonwebtoken";
 import log from "@/logger";
 import env from "@/env";
 import { z } from "zod";
-import { formatZodIssue } from "../utils";
 import ms, { StringValue } from "ms";
 import rateLimit from "express-rate-limit";
 import { Session, User } from "@/generated/prisma/client";
@@ -53,6 +52,8 @@ export async function validateSessionToken({
 }) {
   const [publicPart, secret] = key.slice(3).split(":");
 
+  if (!publicPart || !secret) return null
+
   const token = await db.sessionToken.findUnique({
     where: { public: publicPart, expiresAt: { gt: new Date() }, active: true },
     include: { user: true, session: true },
@@ -66,7 +67,7 @@ export async function validateSessionToken({
   return { user: token.user, session: token.session };
 }
 
-async function createNewSession(user: User) {
+export async function createNewSession(user: User) {
   const session = await db.session.create({
     data: {
       userId: user.id,
@@ -126,6 +127,7 @@ async function refreshSession(session: Session) {
     authData,
     refreshToken: token.key,
     sessionId: session.id,
+    expiresAt: refreshExpiresAt
   };
 }
 
@@ -141,7 +143,7 @@ export function generateAdminToken(userId: number | null = null) {
   );
 }
 
-function assignSessionInfo(sessionId: number, req: Request) {
+export function assignSessionInfo(sessionId: number, req: Request) {
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
   return db.session.update({
     where: {
@@ -197,14 +199,17 @@ export async function auth(req: Request, res: Response, next: NextFunction) {
     res.appendHeader("X-Access-Token", session.accessToken);
     res.appendHeader("X-Refresh-Token", session.refreshToken);
     res.cookie("x-access-token", session.accessToken)
-    res.cookie("x-refresh-token", session.refreshToken)
+    res.cookie("x-refresh-token", session.refreshToken, { expires: session.expiresAt })
   }
   return next();
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (!req.auth) {
-    return res.sendStatus(401);
+    return res.status(401).json({
+      ok: false,
+      message: "Unauthorized"
+    });
   }
   return next();
 }
@@ -215,263 +220,6 @@ app.use(bodyParser.json({ limit: "1mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "1mb" }));
 
 app.use(basicLimiter);
-
-export const UserRegisterSchema = z.object({
-  username: z
-    .string({ message: "Username must be a string" })
-    .trim()
-    .min(3, { message: "Username must be at least 3 characters long" })
-    .max(32, { message: "Username cannot exceed 32 characters" }),
-  email: z
-    .string({ message: "Email must be a string" })
-    .trim()
-    .toLowerCase()
-    .email({ message: "Email must be a valid email address" }),
-  password: z
-    .string({ message: "Password must be a string" })
-    .trim()
-    .min(3, { message: "Password must be at least 3 characters long" })
-    .max(256, { message: "Username cannot exceed 256 characters" }),
-});
-
-export const UserLoginSchema = z.object({
-  username: z
-    .string({ message: "Username/email must be a string" })
-    .trim()
-    .min(3, { message: "Username/email must be at least 3 characters long" })
-    .max(32, { message: "Username/email cannot exceed 256 characters" }),
-  password: z
-    .string({ message: "Password must be a string" })
-    .trim()
-    .min(3, { message: "Password must be at least 3 characters long" })
-    .max(256, { message: "Username cannot exceed 256 characters" }),
-});
-
-export const UserReturnSchema = z.object({
-  id: z.number(),
-  username: z.string(),
-  displayname: z.string(),
-  email: z.string().default(""),
-  emailConfirmed: z.boolean(),
-  role: z.string(),
-});
-
-app.post("/register", strictLimiter, async (req, res) => {
-  try {
-    const { data, success, error } = UserRegisterSchema.safeParse(req.body);
-    if (!success) {
-      res.status(400).json({
-        status: "error",
-        message: error.errors.map(formatZodIssue),
-      });
-      return;
-    }
-    const { username: displayname, password, email } = data;
-    const username = displayname.toLowerCase();
-    log.info(`Attempted registration by ${username}`);
-    const existing_username = await db.user.findUnique({
-      where: {
-        username: username,
-      },
-    });
-    if (existing_username) {
-      res.status(400).json({
-        status: "error",
-        message: "Username is already taken",
-      });
-      return;
-    }
-    const existing_email = await db.user.findUnique({
-      where: {
-        email: email,
-      },
-    });
-    if (existing_email) {
-      res.status(400).json({
-        status: "error",
-        message: "Email is already used on another account",
-      });
-      return;
-    }
-
-    const hashed_password = await argon2.hash(password);
-    const user = await db.user.create({
-      data: {
-        username,
-        displayname,
-        email,
-        password: hashed_password,
-        role: env.REGISTERED_USERS_LIMITED ? user_role.limited : user_role.user,
-      },
-    });
-    const session = await createNewSession(user);
-    log.info(`User ${username} registered`, {
-      user: user.id,
-      sessionId: session.sessionId,
-      role: user.role,
-    });
-    res.appendHeader("X-Access-Token", session.accessToken);
-    res.appendHeader("X-Refresh-Token", session.refreshToken);
-    res.cookie("x-access-token", session.accessToken)
-    res.cookie("x-refresh-token", session.refreshToken)
-    await assignSessionInfo(session.sessionId, req);
-    return res.status(201).json({
-      status: "ok",
-      message: "Successfully registered user",
-      data: {
-        user: UserReturnSchema.parse(user),
-        session: session,
-      },
-    });
-  } catch (err) {
-    log.error(`Register error: ${err}`);
-    return res.status(500).json({
-      status: "error",
-      message: "An error has occurred when trying to complete request",
-    });
-  }
-});
-
-app.post("/login", strictLimiter, async (req, res) => {
-  try {
-    const { data, success, error } = UserLoginSchema.safeParse(req.body);
-    if (!success) {
-      res.status(400).json({
-        status: "error",
-        message: error.errors.map(formatZodIssue),
-      });
-      return;
-    }
-    const { username: displayname, password } = data;
-    const username = displayname.toLowerCase();
-    log.info(`Attempted login as ${username}`);
-    const user = await db.user.findUnique({
-      where: {
-        username: username,
-      },
-    });
-    if (!user) {
-      res.status(404).json({
-        status: "error",
-        message: "User does not exist",
-      });
-      return;
-    }
-    if (!(await argon2.verify(user.password, password))) {
-      res.status(400).json({
-        status: "error",
-        message: "Invalid password",
-      });
-      log.warn(`Incorrect password during login as ${username}`);
-      return;
-    }
-    const session = await createNewSession(user);
-    res.appendHeader("X-Access-Token", session.accessToken);
-    res.appendHeader("X-Refresh-Token", session.refreshToken);
-    res.cookie("x-access-token", session.accessToken)
-    res.cookie("x-refresh-token", session.refreshToken)
-    await assignSessionInfo(session.sessionId, req);
-    res.status(200).json({
-      status: "ok",
-      message: `Logged in. Welcome, ${username}`,
-      data: {
-        user: UserReturnSchema.parse(user),
-        session,
-      },
-    });
-    log.info(`User ${username} logged in`, {
-      user: user.id,
-      sessionId: session.sessionId,
-      role: user.role,
-    });
-  } catch (err) {
-    log.error(`Login error: ${err}`, { user: req.auth?.userId ?? -1 });
-    res.status(400).json({
-      status: "error",
-      message: "An error has occurred when trying to login",
-    });
-  }
-});
-
-app.post("/logout", requireAuth, async (req, res) => {
-  try {
-    const auth = req.auth;
-    if (!auth) {
-      res.sendStatus(401);
-      return;
-    }
-    const user = await db.user.findUnique({
-      where: {
-        id: auth.userId,
-      },
-    });
-    if (!user) {
-      res.status(404).json({
-        status: "error",
-        message: "User does not exist",
-      });
-      return;
-    }
-    const currentSession = await db.session.findUnique({
-      where: {
-        id: auth.sessionId,
-      },
-    });
-    if (!currentSession) {
-      res.status(400).json({
-        status: "error",
-        message: "Session does not exist",
-      });
-      return;
-    }
-
-    await db.sessionToken.updateMany({
-      where: {
-        sessionId: currentSession.id,
-      },
-      data: {
-        active: false,
-      },
-    });
-    await db.session.update({
-      where: {
-        id: currentSession.id,
-      },
-      data: {
-        active: false,
-      },
-    });
-
-    res.appendHeader("X-Access-Token", "");
-    res.appendHeader("X-Refresh-Token", "");
-
-    log.info(`User ${user.username} logged out`, {
-      user: user.id,
-      sessionId: auth.sessionId,
-    });
-    res.status(200).json({
-      status: "ok",
-      message: "Goodbye",
-    });
-  } catch (err) {
-    log.error(`Logout error: ${err}`, {
-      user: req.auth?.userId ?? -1,
-    });
-    res.status(500).json({
-      status: "error",
-      message: "An error has occurred when trying to logout",
-    });
-  }
-});
-
-app.patch("/user", async (req, res) => {
-  /*Update user to new values (pwd,username,etc. self or adminside)*/
-  log.error("Received patch to /user");
-  res.status(500).json({
-    status: "error",
-    message: "Not implemented yet",
-  });
-});
 
 app.get("/", (req, res) => {
   const auth = req.auth
@@ -484,37 +232,6 @@ app.get("/", (req, res) => {
   } catch {
     res.status(401).send("")
     return;
-  }
-});
-
-app.get("/self", requireAuth, async (req, res) => {
-  try {
-    const user = await db.user.findUnique({
-      where: {
-        id: req.auth?.userId ?? 0,
-      },
-      include: {
-        sessions: true,
-      },
-    });
-    if (!user) {
-      res.status(404).json({
-        status: "error",
-        message: "Could not find current user",
-      });
-      return;
-    }
-    res.status(200).json(UserReturnSchema.parse(user));
-  } catch (err) {
-    res.status(500).json({
-      status: "error",
-      message: "An error has occurred when trying to get current user",
-    });
-    log.error(`An error occured on /self Err: ${err}`, {
-      user: req.auth?.userId,
-      sessionId: req.auth?.sessionId,
-      role: req.auth?.role,
-    });
   }
 });
 
@@ -538,7 +255,7 @@ export function requireAdmin(
       role: req.auth?.role,
     });
     res.status(401).json({
-      status: "error",
+      ok: false,
       message: "You are not authorized to access this endpoint",
     });
     return;

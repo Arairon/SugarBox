@@ -55,7 +55,7 @@ app.post("/new", async (req, res) => {
   } = SaveSchema.omit({ id: true }).safeParse(req.body);
   if (!success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: error.errors.map(formatZodIssue),
     });
     return;
@@ -63,7 +63,7 @@ app.post("/new", async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
@@ -75,7 +75,7 @@ app.post("/new", async (req, res) => {
       data: save,
     });
     res.status(200).json({
-      status: "ok",
+      ok: true,
       message: "Created a new save",
       data: createdSave,
     });
@@ -85,7 +85,7 @@ app.post("/new", async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when adding a new save",
     });
     log.error(`Error occurred on save addition. Err: ${err}`, {
@@ -103,7 +103,7 @@ app.get("/uuid/:saveId", async (req, res) => {
   const uuidParse = z.string().uuid().safeParse(req.params.saveId);
   if (!uuidParse.success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "Invalid uuid",
     });
     return;
@@ -118,13 +118,13 @@ app.get("/uuid/:saveId", async (req, res) => {
   });
   if (!save) {
     res.status(404).json({
-      status: "error",
+      ok: false,
       message: "Save not found",
     });
     return;
   }
   res.status(200).json({
-    status: "ok",
+    ok: true,
     message: "Retrieved save",
     data: save,
   });
@@ -134,7 +134,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
   const uuidParse = z.string().uuid().safeParse(req.params.saveId);
   if (!uuidParse.success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "Invalid uuid",
     });
     return;
@@ -144,7 +144,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
@@ -157,7 +157,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
   } = SaveUpdSchema.omit({ id: true }).safeParse(req.body);
   if (!success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: error.errors.map(formatZodIssue),
     });
     return;
@@ -175,13 +175,13 @@ app.patch("/uuid/:saveId", async (req, res) => {
       create: saveData as SaveObj,
     });
     res.status(200).json({
-      status: "ok",
+      ok: true,
       message: "Save updated",
       data: save,
     });
   } catch (err) {
     res.status(500).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when changing a save",
     });
     log.error(`Error occurred on save patch. Err: ${err}`, {
@@ -195,7 +195,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
   const uuidParse = z.string().uuid().safeParse(req.params.saveId);
   if (!uuidParse.success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "Invalid uuid",
     });
     return;
@@ -205,7 +205,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
@@ -219,13 +219,13 @@ app.patch("/uuid/:saveId", async (req, res) => {
       },
     });
     res.status(200).json({
-      status: "ok",
+      ok: true,
       message: "Save deleted",
     });
     log.info(`User (${auth.userId}) deleted a save`);
   } catch (err) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when deleting a save",
     });
     log.error(`Error occurred on save deletion. Err: ${err}`, {
@@ -239,7 +239,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 //   const { name, gameVersion, description, createdAt, data, charId } = req.body;
 //   if (isNaN(Number(req.params.gameId))) {
 //     res.status(400).json({
-//       status: "error",
+//       ok: false,
 //       message: "GameId must be a number",
 //     });
 //     return;
@@ -248,7 +248,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 
 //   if (!data) {
 //     res.status(400).json({
-//       status: "error",
+//       ok: false,
 //       message: "You must supply a 'data' property with save data.",
 //     });
 //     return;
@@ -271,7 +271,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 //     res.status(200).json(saveObj);
 //   } catch (err) {
 //     res.status(400).json({
-//       status: "error",
+//       ok: false,
 //       message: "An error has occurred when adding a save",
 //     });
 //     log.error(
@@ -283,7 +283,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 // app.get("/game/:gameId", async (req, res) => {
 //   if (isNaN(Number(req.params.gameId))) {
 //     res.status(400).json({
-//       status: "error",
+//       ok: false,
 //       message: "GameId must be a number",
 //     });
 //     return;
@@ -316,7 +316,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 // app.get("/user/:userId", requireAdmin, async (req, res) => {
 //   if (isNaN(Number(req.params.userId))) {
 //     res.status(400).json({
-//       status: "error",
+//       ok: false,
 //       message: "userId must be a number",
 //     });
 //     return;
@@ -337,7 +337,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 // app.get("/id/:saveId", async (req, res) => {
 //   if (isNaN(Number(req.params.saveId))) {
 //     res.status(400).json({
-//       status: "error",
+//       ok: false,
 //       message: "SaveId must be a number",
 //     });
 //     return;
@@ -368,7 +368,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 // app.patch("/id/:saveId", async (req, res) => {
 //   if (isNaN(Number(req.params.saveId))) {
 //     res.status(400).json({
-//       status: "error",
+//       ok: false,
 //       message: "SaveId must be a number",
 //     });
 //     return;
@@ -377,7 +377,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 //   const { name, gameVersion, description, data, charId, archived } = req.body;
 //   if (data) {
 //     res.status(400).json({
-//       status: "error",
+//       ok: false,
 //       message: "Amending save data is not supported. Create a new save.",
 //     });
 //     return;
@@ -396,10 +396,10 @@ app.patch("/uuid/:saveId", async (req, res) => {
 //       },
 //       data: updateData,
 //     });
-//     res.status(200).json({ status: "ok", message: "Save updated" });
+//     res.status(200).json({ ok: true, message: "Save updated" });
 //   } catch (err) {
 //     res.status(400).json({
-//       status: "error",
+//       ok: false,
 //       message: "Error when updating a save.",
 //     });
 //     log.error(
@@ -411,7 +411,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 // app.delete("/id/:saveId", async (req, res) => {
 //   if (isNaN(Number(req.params.saveId))) {
 //     res.status(400).json({
-//       status: "error",
+//       ok: false,
 //       message: "SaveId must be a number",
 //     });
 //     return;
@@ -424,10 +424,10 @@ app.patch("/uuid/:saveId", async (req, res) => {
 //         id: saveId,
 //       },
 //     });
-//     res.status(200).json({ status: "ok", message: "Save deleted" });
+//     res.status(200).json({ ok: true, message: "Save deleted" });
 //   } catch (err) {
 //     res.status(400).json({
-//       status: "error",
+//       ok: false,
 //       message: "Error when deleting a save.",
 //     });
 //     log.error(

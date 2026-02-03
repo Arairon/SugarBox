@@ -25,8 +25,11 @@ border-cyan-700 px-2 transition-colors hover:border-cyan-500 dark:hover:bg-backg
 
 function CurrentChar() {
   const { game, char, setChar, setPage } = useSugarBoxState();
-  const {open: openGameEditor} = useGameEditorState();
-  const chars = useLiveQuery(() => db.chars.where("gameId").equals(game?.uuid ?? -1).and(c => !c.archived).toArray(), [game]) ?? [];
+  const { open: openGameEditor } = useGameEditorState();
+  const chars = useLiveQuery(() => db.chars
+    .where("gameId").equals(game?.uuid ?? -1)
+    .and(c => !c.archived)
+    .reverse().sortBy("updatedAt"), [game]) ?? [];
 
   return (
     <Select
@@ -57,11 +60,11 @@ border-l border-cyan-700 px-2 transition-colors hover:border-cyan-500 dark:hover
       <SelectContent position="popper">
         <SelectGroup>
           <SelectLabel>Character</SelectLabel>
-          <SelectItem value="-1">Any</SelectItem>
+          <SelectItem value="-1">No character</SelectItem>
           {chars.map((char) => (
             <SelectItem key={char.uuid} value={char.id.toString()}>{char.name}</SelectItem>
           ))}
-          <SelectItem value="-2">New character</SelectItem>
+          <SelectItem value="-2">[ Edit characters ]</SelectItem>
         </SelectGroup>
       </SelectContent>
     </Select>

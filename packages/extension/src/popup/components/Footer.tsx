@@ -1,9 +1,11 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { Button } from "@/shared/components/ui/button";
-import { useSugarBoxState } from "../lib/state";
+import { loadBackgroundState, useSugarBoxState } from "../lib/state";
 import { CloudOffIcon, GlobeIcon, GlobeLockIcon, HardDriveIcon, LogInIcon, LogOutIcon, User2Icon, UserPlus2Icon, WrenchIcon } from "lucide-react";
 import { Switch } from "@/shared/components/ui/switch";
+import { logout, toggleOnlineMode } from "../lib/user";
+import { toast } from "sonner";
 
 function UserMenu() {
   const { user, setPage, page } = useSugarBoxState()
@@ -33,14 +35,14 @@ function UserMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex cursor-pointer flex-row items-center justify-center gap-2
-border-x-2 border-cyan-700 px-2 font-mono hover:border-cyan-500 hover:bg-background/20" >
+      <DropdownMenuTrigger className="flex flex-1 cursor-pointer flex-row items-center justify-center gap-2
+border-x-2 border-cyan-700 px-4 font-mono hover:border-cyan-500 hover:bg-background/20" >
         <a className="max-w-32 grow truncate">{username}</a>
         <Tooltip>
           <TooltipTrigger asChild>
             {statusIcon}
           </TooltipTrigger>
-          <TooltipContent className="border-1 bg-slate-900 text-white">
+          <TooltipContent className="border bg-slate-900 text-white">
             <p>{statusDescription}</p>
             {statusDescriptionExtra && <p className='text-xs text-gray-400'>{statusDescriptionExtra}</p>}
           </TooltipContent>
@@ -49,7 +51,9 @@ border-x-2 border-cyan-700 px-2 font-mono hover:border-cyan-500 hover:bg-backgro
       <DropdownMenuContent>
         <DropdownMenuItem onClick={(e) => {
           e.preventDefault()
-          // Toggle online mode
+          toggleOnlineMode().then(()=>{
+            loadBackgroundState()
+          })
         }}>
           <a className='grow'>Online</a> <Switch checked={user.onlineMode} />
         </DropdownMenuItem>
@@ -61,6 +65,14 @@ border-x-2 border-cyan-700 px-2 font-mono hover:border-cyan-500 hover:bg-backgro
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => {
               if (page === "account") setPage("home")
+              logout().then(res => {
+                if (res.ok) {
+                  toast("Goodbye!", { duration: 1500 })
+                  loadBackgroundState()
+                } else {
+                  toast.error("Failed to logout", { description: res.message })
+                }
+              })
             }
             }>
               <LogOutIcon className='rotate-180' /> Log Out
@@ -91,6 +103,7 @@ export function Footer() {
         className="rounded-none border-x-2 border-cyan-700 hover:border-cyan-500 hover:bg-background/30">
         <WrenchIcon />
       </Button>
+      {/* TODO: Trash page */}
       <div className="flex-1"></div>
       <UserMenu />
     </footer>

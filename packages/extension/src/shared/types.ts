@@ -14,7 +14,7 @@ export const GamePathSchema = z.object({
 export const GameSchema = z.object({
   id: z.number().int(),
   uuid: z.uuid(),
-  remoteId: z.number().int().nullable(),
+  remoteId: z.number().int(),
   name: z.string(),
   shortname: z.string(),
   paths: z.array(GamePathSchema),
@@ -28,8 +28,8 @@ export const GameSchema = z.object({
     .number()
     .gte(1)
     .default(() => Date.now()),
-  syncStatus: SyncStatusSchema.default("created"),
-  syncedAt: z.number().default(0),
+  // syncStatus: SyncStatusSchema.default("created"),
+  // syncedAt: z.number().default(0),
 });
 
 export type GamePathObj = z.infer<typeof GamePathSchema>;
@@ -39,7 +39,7 @@ export function createEmptyGameObject(): GameObj {
   return {
     id: -1,
     uuid: uuidv6(),
-    remoteId: null,
+    remoteId: -1,
     name: "",
     shortname: "",
     paths: [],
@@ -47,15 +47,15 @@ export function createEmptyGameObject(): GameObj {
     archivedAt: 0,
     updatedAt: Date.now(),
     createdAt: Date.now(),
-    syncStatus: "created",
-    syncedAt: 0,
+    // syncStatus: "created",
+    // syncedAt: 0,
   };
 }
 
 export const CharSchema = z.object({
   id: z.number().int(),
   uuid: z.uuid(),
-  remoteId: z.number().int().nullable(),
+  remoteId: z.number().int(),
   name: z.string(),
   gameId: z.string(), //.uuid(),
   slots: z.array(z.union([z.uuid(), z.literal("")])), // Array of save uuids or empty slots
@@ -69,8 +69,8 @@ export const CharSchema = z.object({
     .number()
     .gte(1)
     .default(() => Date.now()),
-  syncStatus: SyncStatusSchema.default("created"),
-  syncedAt: z.number().default(0),
+  // syncStatus: SyncStatusSchema.default("created"),
+  // syncedAt: z.number().default(0),
 });
 
 export type CharObj = z.infer<typeof CharSchema>;
@@ -79,7 +79,7 @@ export function createEmptyCharObject(): CharObj {
   return {
     id: -1,
     uuid: uuidv6(),
-    remoteId: null,
+    remoteId: -1,
     name: "",
     gameId: "",
     slots: [],
@@ -87,15 +87,15 @@ export function createEmptyCharObject(): CharObj {
     archivedAt: 0,
     updatedAt: Date.now(),
     createdAt: Date.now(),
-    syncStatus: "created",
-    syncedAt: 0,
+    // syncStatus: "created",
+    // syncedAt: 0,
   };
 }
 
 export const SaveSchema = z.object({
   id: z.number().int(),
   uuid: z.uuid(),
-  remoteId: z.number().int().nullable(),
+  remoteId: z.number().int(),
   name: z.string(),
   description: z.string(),
   gameVersion: z.string(),
@@ -114,8 +114,8 @@ export const SaveSchema = z.object({
     .number()
     .gte(1)
     .default(() => Date.now()),
-  syncStatus: SyncStatusSchema.default("created"),
-  syncedAt: z.number().default(0),
+  // syncStatus: SyncStatusSchema.default("created"),
+  // syncedAt: z.number().default(0),
 });
 
 export type SaveObj = z.infer<typeof SaveSchema>;
@@ -124,7 +124,7 @@ export function createEmptySaveObject(): SaveObj {
   return {
     id: -1,
     uuid: uuidv6(),
-    remoteId: null,
+    remoteId: -1,
     name: "",
     description: "",
     gameVersion: "",
@@ -137,8 +137,8 @@ export function createEmptySaveObject(): SaveObj {
     archivedAt: 0,
     updatedAt: Date.now(),
     createdAt: Date.now(),
-    syncStatus: "created",
-    syncedAt: 0,
+    // syncStatus: "created",
+    // syncedAt: 0,
   };
 }
 
@@ -154,7 +154,8 @@ export const UserSchema = z.object({
   online: z.boolean().default(false),
   offlineReason: z.string().default(""),
   onlineMode: z.boolean().default(true),
-  syncPeriod: z.number().int().default(300), // sync period in seconds. 0 = live
+  lastSyncedAt: z.number().int().default(0),
+  // syncPeriod: z.number().int().default(300), // sync period in seconds. 0 = live
 })
 
 export type UserObj = z.infer<typeof UserSchema>;

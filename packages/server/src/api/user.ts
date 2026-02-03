@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { Router } from "express";
 import bodyParser from "body-parser";
 import log from "@/logger";
-import { basicLimiter, requireAuth } from "./auth";
+import { assignSessionInfo, basicLimiter, createNewSession, requireAuth, strictLimiter } from "./auth";
 import env from "@/env";
 import argon2 from "argon2";
 import { z } from "zod";
@@ -14,13 +14,53 @@ const app: Router = Router();
 app.use(bodyParser.json({ limit: "1mb" }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "1mb" }));
 app.use(basicLimiter);
-app.use(requireAuth);
 
 const quotas: Record<user_role, number> = {
   user: env.STORAGE_QUOTA_USER,
   admin: env.STORAGE_QUOTA_ADMIN,
   limited: 1048576, // just 1mb
 };
+
+
+export const UserRegisterSchema = z.object({
+  username: z
+    .string({ message: "Username must be a string" })
+    .trim()
+    .min(3, { message: "Username must be at least 3 characters long" })
+    .max(32, { message: "Username cannot exceed 32 characters" }),
+  email: z
+    .string({ message: "Email must be a string" })
+    .trim()
+    .toLowerCase()
+    .email({ message: "Email must be a valid email address" }),
+  password: z
+    .string({ message: "Password must be a string" })
+    .trim()
+    .min(3, { message: "Password must be at least 3 characters long" })
+    .max(256, { message: "Username cannot exceed 256 characters" }),
+});
+
+export const UserLoginSchema = z.object({
+  username: z
+    .string({ message: "Username/email must be a string" })
+    .trim()
+    .min(3, { message: "Username/email must be at least 3 characters long" })
+    .max(32, { message: "Username/email cannot exceed 256 characters" }),
+  password: z
+    .string({ message: "Password must be a string" })
+    .trim()
+    .min(3, { message: "Password must be at least 3 characters long" })
+    .max(256, { message: "Username cannot exceed 256 characters" }),
+});
+
+export const UserReturnSchema = z.object({
+  id: z.number(),
+  username: z.string(),
+  displayname: z.string(),
+  email: z.string().default(""),
+  emailConfirmed: z.boolean(),
+  role: z.string(),
+});
 
 const UserPatchSchema = z.object({
   displayname: z
@@ -50,13 +90,13 @@ const UserPatchSchema = z.object({
     .optional(),
 });
 
-app.delete("/session/:id", async (req, res) => {
+app.delete("/session/:id", requireAuth, async (req, res) => {
   try {
     const auth = req.auth;
     if (!auth) {
-      res.status(403).json({
-        status: "error",
-        message: "Invalid auth token",
+      res.status(401).json({
+        ok: false,
+        message: "Unauthorized",
       });
       return;
     }
@@ -88,7 +128,7 @@ app.delete("/session/:id", async (req, res) => {
     });
 
     res.status(200).json({
-      status: "ok",
+      ok: true,
       message: "Session invalidated",
     });
   } catch (err) {
@@ -98,19 +138,19 @@ app.delete("/session/:id", async (req, res) => {
       role: req.auth?.role,
     });
     res.status(500).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when trying to complete request",
     });
   }
 });
 
-app.get("/sessions", async (req, res) => {
+app.get("/sessions", requireAuth, async (req, res) => {
   try {
     const auth = req.auth;
     if (!auth) {
-      res.status(403).json({
-        status: "error",
-        message: "Invalid auth token",
+      res.status(401).json({
+        ok: false,
+        message: "Unauthorized",
       });
       return;
     }
@@ -132,18 +172,263 @@ app.get("/sessions", async (req, res) => {
       role: req.auth?.role,
     });
     res.status(500).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when trying to complete request",
     });
   }
 });
 
-app.patch("/self", async (req, res) => {
+app.post("/register", strictLimiter, async (req, res) => {
+  try {
+    const { data, success, error } = UserRegisterSchema.safeParse(req.body);
+    if (!success) {
+      res.status(400).json({
+        ok: false,
+        message: error.errors.map(formatZodIssue),
+      });
+      return;
+    }
+    const { username: displayname, password, email } = data;
+    const username = displayname.toLowerCase();
+    log.info(`Attempted registration by ${username}`);
+    const existing_username = await db.user.findUnique({
+      where: {
+        username: username,
+      },
+    });
+    if (existing_username) {
+      res.status(400).json({
+        ok: false,
+        message: "Username is already taken",
+      });
+      return;
+    }
+    const existing_email = await db.user.findUnique({
+      where: {
+        email: email,
+      },
+    });
+    if (existing_email) {
+      res.status(400).json({
+        ok: false,
+        message: "Email is already used on another account",
+      });
+      return;
+    }
+
+    const hashed_password = await argon2.hash(password);
+    const user = await db.user.create({
+      data: {
+        username,
+        displayname,
+        email,
+        password: hashed_password,
+        role: env.REGISTERED_USERS_LIMITED ? user_role.limited : user_role.user,
+      },
+    });
+    const session = await createNewSession(user);
+    log.info(`User ${username} registered`, {
+      user: user.id,
+      sessionId: session.sessionId,
+      role: user.role,
+    });
+    res.appendHeader("X-Access-Token", session.accessToken);
+    res.appendHeader("X-Refresh-Token", session.refreshToken);
+    res.cookie("x-access-token", session.accessToken)
+    res.cookie("x-refresh-token", session.refreshToken, { expires: session.expiresAt })
+    await assignSessionInfo(session.sessionId, req);
+    return res.status(201).json({
+      ok: true,
+      message: "Successfully registered user",
+      data: {
+        user: UserReturnSchema.parse(user),
+        session: session,
+      },
+    });
+  } catch (err) {
+    log.error(`Register error: ${err}`);
+    return res.status(500).json({
+      ok: false,
+      message: "An error has occurred when trying to complete request",
+    });
+  }
+});
+
+app.post("/login", strictLimiter, async (req, res) => {
+  try {
+    const { data, success, error } = UserLoginSchema.safeParse(req.body);
+    if (!success) {
+      res.status(400).json({
+        ok: false,
+        message: error.errors.map(formatZodIssue),
+      });
+      return;
+    }
+    const { username: displayname, password } = data;
+    const username = displayname.toLowerCase();
+    log.info(`Attempted login as ${username}`);
+    const user = await db.user.findUnique({
+      where: {
+        username: username,
+      },
+    });
+    if (!user) {
+      res.status(404).json({
+        ok: false,
+        message: "User does not exist",
+      });
+      return;
+    }
+    if (!(await argon2.verify(user.password, password))) {
+      res.status(400).json({
+        ok: false,
+        message: "Invalid password",
+      });
+      log.warn(`Incorrect password during login as ${username}`);
+      return;
+    }
+    const session = await createNewSession(user);
+    res.appendHeader("X-Access-Token", session.accessToken);
+    res.appendHeader("X-Refresh-Token", session.refreshToken);
+    res.cookie("x-access-token", session.accessToken)
+    res.cookie("x-refresh-token", session.refreshToken, { expires: session.expiresAt })
+    await assignSessionInfo(session.sessionId, req);
+    res.status(200).json({
+      ok: true,
+      message: `Logged in. Welcome, ${username}`,
+      data: {
+        user: UserReturnSchema.parse(user),
+        session,
+      },
+    });
+    log.info(`User ${username} logged in`, {
+      user: user.id,
+      sessionId: session.sessionId,
+      role: user.role,
+    });
+  } catch (err) {
+    log.error(`Login error: ${err}`, { user: req.auth?.userId ?? -1 });
+    res.status(400).json({
+      ok: false,
+      message: "An error has occurred when trying to login",
+    });
+  }
+});
+
+app.post("/logout", requireAuth, async (req, res) => {
+  try {
+    const auth = req.auth;
+    if (!auth) {
+      res.sendStatus(401);
+      return;
+    }
+    const user = await db.user.findUnique({
+      where: {
+        id: auth.userId,
+      },
+    });
+    if (!user) {
+      res.status(404).json({
+        ok: false,
+        message: "User does not exist",
+      });
+      return;
+    }
+    const currentSession = await db.session.findUnique({
+      where: {
+        id: auth.sessionId,
+      },
+    });
+    if (!currentSession) {
+      res.status(400).json({
+        ok: false,
+        message: "Session does not exist",
+      });
+      return;
+    }
+
+    await db.sessionToken.updateMany({
+      where: {
+        sessionId: currentSession.id,
+      },
+      data: {
+        active: false,
+      },
+    });
+    await db.session.update({
+      where: {
+        id: currentSession.id,
+      },
+      data: {
+        active: false,
+      },
+    });
+
+    res.appendHeader("X-Access-Token", "");
+    res.appendHeader("X-Refresh-Token", "");
+    res.cookie("x-access-token", "", {expires: new Date(0)})
+    res.cookie("x-refresh-token", "", {expires: new Date(0)})
+
+    log.info(`User ${user.username} logged out`, {
+      user: user.id,
+      sessionId: auth.sessionId,
+    });
+    res.status(200).json({
+      ok: true,
+      message: "Goodbye",
+    });
+  } catch (err) {
+    log.error(`Logout error: ${err}`, {
+      user: req.auth?.userId ?? -1,
+    });
+    res.status(500).json({
+      ok: false,
+      message: "An error has occurred when trying to logout",
+    });
+  }
+});
+
+
+app.get("/", requireAuth, async (req, res) => {
+  try {
+    const user = await db.user.findUnique({
+      where: {
+        id: req.auth?.userId ?? 0,
+      },
+      include: {
+        sessions: true,
+      },
+    });
+    if (!user) {
+      res.status(404).json({
+        ok: false,
+        message: "Could not find current user",
+      });
+      return;
+    }
+    res.status(200).json({
+      ok: true,
+      data: UserReturnSchema.parse(user)
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: "An error has occurred when trying to get current user",
+    });
+    log.error(`An error occured on / Err: ${err}`, {
+      user: req.auth?.userId,
+      sessionId: req.auth?.sessionId,
+      role: req.auth?.role,
+    });
+  }
+});
+
+app.patch("/self", requireAuth, async (req, res) => {
   try {
     const auth = req.auth;
     if (!auth) {
       res.status(403).json({
-        status: "error",
+        ok: false,
         message: "Invalid auth token",
       });
       return;
@@ -151,7 +436,7 @@ app.patch("/self", async (req, res) => {
     const { success, data, error } = UserPatchSchema.safeParse(req.body);
     if (!success) {
       res.status(400).json({
-        status: "error",
+        ok: false,
         message: error.errors.map(formatZodIssue),
       });
       return;
@@ -171,7 +456,7 @@ app.patch("/self", async (req, res) => {
       });
       if (existing) {
         res.status(400).json({
-          status: "error",
+          ok: false,
           message: "Username is already taken",
         });
         return;
@@ -188,7 +473,7 @@ app.patch("/self", async (req, res) => {
       });
       if (existing) {
         res.status(400).json({
-          status: "error",
+          ok: false,
           message: "Email is already taken",
         });
         return;
@@ -218,7 +503,7 @@ app.patch("/self", async (req, res) => {
       });
     }
     res.status(200).json({
-      status: "ok",
+      ok: true,
       message: "Updated your account",
       data: user,
     });
@@ -229,18 +514,18 @@ app.patch("/self", async (req, res) => {
       role: req.auth?.role,
     });
     res.status(500).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when trying to complete request",
     });
   }
 });
 
-app.get("/quota", async (req, res) => {
+app.get("/quota", requireAuth, async (req, res) => {
   try {
     const auth = req.auth;
     if (!auth) {
       res.status(403).json({
-        status: "error",
+        ok: false,
         message: "Invalid auth token",
       });
       return;
@@ -254,7 +539,7 @@ app.get("/quota", async (req, res) => {
     const totalSavesSize = saves.reduce((a, b) => a + b.size, 0);
 
     res.status(200).json({
-      status: "ok",
+      ok: true,
       message: "Calculated storage quota",
       data: {
         usage: totalSavesSize,
@@ -264,7 +549,7 @@ app.get("/quota", async (req, res) => {
   } catch (err) {
     log.error(`Refresh error: ${err}`);
     res.status(500).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when trying to refresh session",
     });
   }

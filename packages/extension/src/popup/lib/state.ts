@@ -1,15 +1,17 @@
 import { createEmptyUserObject, type CharObj, type GameObj, type UserObj } from "@/shared/types";
 import { create } from "zustand";
-import { pages } from "../pages/pagesIndex";
+import { nonActivityPages, pages } from "../pages/pagesIndex";
 import { sendMessage } from "webext-bridge/popup";
 
+type Page = (keyof typeof pages) | (keyof typeof nonActivityPages)
+
 interface SugarBoxState {
-  page: keyof typeof pages;
+  page: Page
   user: UserObj
   game: GameObj | null
   char: CharObj | null
 
-  setPage: (page: keyof typeof pages) => void
+  setPage: (page: Page) => void
   setUser: (user: UserObj) => void
   setGame: (game: GameObj | null) => void
   setChar: (char: CharObj | null) => void

@@ -5,7 +5,61 @@ import { getSave, isPageAGame, loadSave } from "./page";
 import md5 from "md5"
 import { state } from "./state";
 import { Char } from "./char";
+import z from "zod";
+import { Sync } from "./sync";
 
+
+export const SaveUploadSchema = z.object({
+  uuid: z.uuid(),
+  name: z.string(),
+  description: z.string(),
+  gameVersion: z.string(),
+  gameId: z.uuid(),
+  charId: z.uuid(),
+  data: z.string(),
+  size: z.number(),
+  hash: z.string(),
+  archived: z.coerce.boolean(),
+  archivedAt: z.coerce.date().default(new Date(0)),
+  updatedAt: z.coerce.date().default(() => new Date()),
+  createdAt: z.coerce.date().default(() => new Date()),
+});
+
+export type SaveUploadObject = z.infer<typeof SaveUploadSchema>
+
+export const SaveDownloadSchema = z
+  .object({
+    id: z.number(),
+    uuid: z.uuid(),
+    remoteId: z.any().transform(() => -1),
+    name: z.string(),
+    description: z.string(),
+    gameVersion: z.string(),
+    gameId: z.uuid(),
+    charId: z.uuid(),
+    data: z.string(),
+    size: z.number(),
+    hash: z.string(),
+    archived: z.boolean().transform((v) => Number(v) as 0 | 1),
+    archivedAt: z.coerce.date().transform((v) => v.getTime()),
+    updatedAt: z.coerce.date().transform((v) => v.getTime()),
+    createdAt: z.coerce.date().transform((v) => v.getTime()),
+  })
+  .transform((s) => {
+    s.remoteId = s.id
+    s.id = -1
+    return s
+  });
+
+export type SaveDownloadObject = z.infer<typeof SaveDownloadSchema>
+
+function prepareForUpload(save: SaveObj) {
+  return SaveUploadSchema.parse(save)
+}
+
+function parseDownloaded(save: unknown) {
+  return SaveDownloadSchema.parse(save)
+}
 
 async function commit(save: SaveObj) {
   save.updatedAt = Date.now()
@@ -14,6 +68,7 @@ async function commit(save: SaveObj) {
   } else {
     save.id = await db.saves.put(save)
   }
+  Sync.scheduleSync()
   return save
 }
 
@@ -23,6 +78,7 @@ async function bulkCommit(saves: SaveObj[]) {
     if (save.id === -1) save.id = undefined as unknown as number
   })
   await db.saves.bulkPut(saves)
+  Sync.scheduleSync()
 }
 
 function archive(save: SaveObj) {
@@ -61,7 +117,7 @@ onMessage("bg_save_new", async (msg) => {
   if (slot === -1) { // New slot
     state.char.slots.push(save.uuid)
     await Char.commit(state.char)
-  } else if (slot) { // Existing slot
+  } else if (slot !== undefined) { // Existing slot
     const existingSaveId = state.char.slots[slot]
     if (existingSaveId) {
       const exSave = await db.saves.get({ uuid: existingSaveId })
@@ -134,5 +190,7 @@ onMessage("bg_save_load", async (msg) => {
 export const Save = {
   archive,
   commit,
-  bulkCommit
+  bulkCommit,
+  prepareForUpload,
+  parseDownloaded
 }

@@ -1,8 +1,10 @@
-import { GameSchema, type GameObj, type SaveObj } from "@/shared/types";
+import { GamePathSchema, GameSchema, type GameObj, type SaveObj } from "@/shared/types";
 import { db } from "./db";
 import { state } from "./state";
 import { onMessage } from "webext-bridge/background";
 import { Char } from "./char";
+import z from "zod";
+import { Sync } from "./sync";
 
 const urlToGameMap = new Map<string, GameObj>()
 
@@ -30,6 +32,7 @@ async function handleTabSwitch(tabId: number) {
 }
 
 async function handleUpdate() {
+  if (!state.tabId) return
   const tab = await chrome.tabs.get(state.tabId)
   if (!tab.id || !tab.url) return
   const game = urlToGameMap.get(tab.url)
@@ -49,6 +52,50 @@ function validate(game: GameObj) {
   return GameSchema.safeParse(game)
 }
 
+export const GameUploadSchema = z.object({
+  uuid: z.uuid(),
+  name: z.string(),
+  shortname: z.string().default(""),
+  paths: z.array(GamePathSchema).transform((p) => JSON.stringify(p)),
+  archived: z.coerce.boolean(),
+  archivedAt: z.coerce.date().default(new Date(0)),
+  updatedAt: z.coerce.date().default(() => new Date()),
+  createdAt: z.coerce.date().default(() => new Date()),
+});
+
+export type GameUploadObject = z.infer<typeof GameUploadSchema>
+
+export const GameDownloadSchema = z
+  .object({
+    id: z.number(),
+    uuid: z.uuid(),
+    remoteId: z.any().transform(() => -1),
+    name: z.string(),
+    shortname: z.string().default(""),
+    paths: z
+      .string()
+      .transform((p) => z.array(GamePathSchema).parse(JSON.parse(p))),
+    archived: z.boolean().transform((v) => Number(v) as 0 | 1),
+    archivedAt: z.coerce.date().transform((v) => v.getTime()),
+    updatedAt: z.coerce.date().transform((v) => v.getTime()),
+    createdAt: z.coerce.date().transform((v) => v.getTime()),
+  })
+  .transform((g) => {
+    g.remoteId = g.id;
+    g.id = -1
+    return g
+  });
+
+export type GameDownloadObject = z.infer<typeof GameDownloadSchema>
+
+function prepareForUpload(game: GameObj) {
+  return GameUploadSchema.parse(game)
+}
+
+function parseDownloaded(game: unknown) {
+  return GameDownloadSchema.parse(game)
+}
+
 async function commit(game: GameObj) {
   if (game.id === -1) {
     game.id = await db.games.put(Object.assign(game, { id: undefined }))
@@ -57,6 +104,7 @@ async function commit(game: GameObj) {
   }
   await rebuildUrlToGameMap()
   await handleUpdate()
+  Sync.scheduleSync()
   return game
 }
 
@@ -121,5 +169,7 @@ export const Game = {
   switchTo,
   validate,
   commit,
-  archive
+  archive,
+  prepareForUpload,
+  parseDownloaded,
 }

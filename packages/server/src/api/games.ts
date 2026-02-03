@@ -19,10 +19,11 @@ app.get("/", async (req, res) => {
 });
 
 app.get("/uuid/:gameId", async (req, res) => {
+  if (!req.auth) return res.send(401).json({ ok: false, message: "Unauthorized" })
   const uuidParse = z.string().uuid().safeParse(req.params.gameId);
   if (!uuidParse.success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "Invalid uuid",
     });
     return;
@@ -30,19 +31,21 @@ app.get("/uuid/:gameId", async (req, res) => {
   const gameId = uuidParse.data;
   const game = await db.game.findUnique({
     where: {
-      uuid: gameId,
-      ownerId: req.auth?.userId,
+      ownerId_uuid: {
+        uuid: gameId,
+        ownerId: req.auth.userId,
+      }
     },
   });
   if (!game) {
     res.status(404).json({
-      status: "error",
+      ok: false,
       message: "Game not found",
     });
     return;
   }
   res.status(200).json({
-    status: "ok",
+    ok: true,
     message: "Retrieved game",
     data: game,
   });
@@ -99,7 +102,7 @@ app.post("/new", async (req, res) => {
   } = GameSchema.omit({ id: true }).safeParse(req.body);
   if (!success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: error.errors.map(formatZodIssue),
     });
     return;
@@ -107,7 +110,7 @@ app.post("/new", async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
@@ -118,14 +121,14 @@ app.post("/new", async (req, res) => {
       data: game,
     });
     res.status(200).json({
-      status: "ok",
+      ok: true,
       message: "Created a new game",
       data: createdGame,
     });
     log.info(`User (${auth.userId}) created a new game`);
   } catch (err) {
     res.status(500).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when adding a new game",
     });
     log.error(`Error occurred on game addition. Err: ${err}`, {
@@ -139,7 +142,7 @@ app.patch("/uuid/:gameId", async (req, res) => {
   const uuidParse = z.string().uuid().safeParse(req.params.gameId);
   if (!uuidParse.success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "Invalid uuid",
     });
     return;
@@ -149,7 +152,7 @@ app.patch("/uuid/:gameId", async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
@@ -162,7 +165,7 @@ app.patch("/uuid/:gameId", async (req, res) => {
   } = GameSchema.omit({ id: true }).safeParse(req.body);
   if (!success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: error.errors.map(formatZodIssue),
     });
     return;
@@ -172,20 +175,22 @@ app.patch("/uuid/:gameId", async (req, res) => {
     gameData.ownerId = auth.userId;
     const game = await db.game.upsert({
       where: {
-        uuid: gameId,
-        ownerId: auth.userId,
+        ownerId_uuid: {
+          uuid: gameId,
+          ownerId: auth.userId,
+        }
       },
       update: gameData,
       create: gameData,
     });
     res.status(200).json({
-      status: "ok",
+      ok: true,
       message: "Game updated",
       data: game,
     });
   } catch (err) {
     res.status(500).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when changing a game",
     });
     log.error(`Error occurred on game patch. Err: ${err}`, {
@@ -199,7 +204,7 @@ app.delete("/uuid/:gameId", async (req, res) => {
   const uuidParse = z.string().uuid().safeParse(req.params.gameId);
   if (!uuidParse.success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: "Invalid uuid",
     });
     return;
@@ -209,7 +214,7 @@ app.delete("/uuid/:gameId", async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
@@ -218,18 +223,20 @@ app.delete("/uuid/:gameId", async (req, res) => {
   try {
     await db.game.delete({
       where: {
-        uuid: gameId,
-        ownerId: auth.userId,
+        ownerId_uuid: {
+          uuid: gameId,
+          ownerId: auth.userId,
+        }
       },
     });
     res.status(200).json({
-      status: "ok",
+      ok: true,
       message: "Game deleted",
     });
     log.info(`User (${auth.userId}) deleted a game`);
   } catch (err) {
     res.status(500).json({
-      status: "error",
+      ok: false,
       message: "An error has occurred when deleting a game",
     });
     log.error(`Error occurred on game deletion. Err: ${err}`, {

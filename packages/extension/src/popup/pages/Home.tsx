@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 import { useSugarBoxState } from "../lib/state";
-import SaveList from "./Home/SaveList";
 import SaveSlots from "./Home/SaveSlots";
+import CharacterSelection from "./Home/CharacterSelection";
 
 export default function Home() {
   const { game, char } = useSugarBoxState();
@@ -10,7 +10,7 @@ export default function Home() {
     if (char) {
       return <SaveSlots />
     } else {
-      return <SaveList />
+      return <CharacterSelection />
     }
   }
 
@@ -20,8 +20,8 @@ export default function Home() {
         <a className="text-xl font-bold">SugarBox</a>
         <a className="block w-full text-center text-sm">SugarCube Save Manager by Arairon</a>
       </p>
-      <p className="rounded-lg border-1 border-cyan-600 bg-slate-900 px-4 py-2 text-base text-pretty">
-        You can find a guide <a className="clickable underline" onClick={()=>{
+      <p className="rounded-lg border border-cyan-600 bg-slate-900 px-4 py-2 text-base text-pretty">
+        You can find a guide <a className="cursor-pointer underline" onClick={()=>{
           chrome.tabs.create({url: "https://github.com/arairon/sugarbox"})
         }}>in the repo</a>.
       </p>

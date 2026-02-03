@@ -1,12 +1,12 @@
+import { SaveDetails } from "@/popup/components/SaveDetails";
 import { db } from "@/popup/lib/db";
-import { exportSaveToFile } from "@/popup/lib/save";
 import { loadBackgroundState, useSugarBoxState } from "@/popup/lib/state";
 import { Button, DoubleClickButton } from "@/shared/components/ui/button";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import type { SaveObj } from "@/shared/types";
 import { formatTime } from "@/shared/utils";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ClipboardIcon, DownloadIcon, FileDownIcon, TrashIcon, UploadIcon } from "lucide-react";
+import { DownloadIcon, TrashIcon, UploadIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { sendMessage } from "webext-bridge/popup";
@@ -98,31 +98,6 @@ function NewSaveSlot() {
 
 
 
-function SaveDetails({ save }: { save: SaveObj }) {
-  function exportToClipboard() {
-    navigator.clipboard.writeText(save.data)
-    toast("Save data copied to clipboard!", { duration: 1500 })
-  }
-
-  return (
-    <div className="flex flex-col items-stretch divide-y divide-slate-800 px-2 py-1 font-mono">
-      <div className="flex items-start">
-        <div className="mr-4 flex flex-col">
-          <a className="font-semibold">{save.name}</a>
-          <p className="text-sm text-pretty text-foreground/70">{save.description}</p>
-          <a className="text-foreground/70">Game version: {save.gameVersion}</a>
-        </div>
-        <Button variant={"outline"} onClick={exportToClipboard} className="rounded-r-none">
-          <ClipboardIcon />
-        </Button>
-        <Button variant={"outline"} onClick={() => exportSaveToFile(save)} className="rounded-l-none">
-          <FileDownIcon />
-        </Button>
-      </div>
-    </div>
-  )
-}
-
 function SaveSlot({ save, index, modifier }: { save: SaveObj, index: number, modifier: undefined | "recent" | "latest" }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -201,7 +176,14 @@ export default function SaveSlots() {
     () => db.saves
       .where("uuid").anyOf(char.slots)
       .and((save) => !save.archived).toArray(),
-    [char]) ?? []
+    [char])
+
+  if (rawsaves === undefined) {
+    return (
+      <main className="flex-1"></main>
+    )
+  }
+
   const saves: (SaveObj | null)[] = []
   for (const saveId of char.slots) saves.push(rawsaves.find((obj) => obj.uuid === saveId) ?? null)
   const latestSave = saves.reduce((prev, current) => ((prev?.createdAt ?? 0) > (current?.createdAt ?? 0)) ? prev : current, null)
@@ -211,11 +193,11 @@ export default function SaveSlots() {
       <div className="divide-y divide-slate-600">
         {saves.map((save, index) => {
           if (!save) return <EmptySaveSlot key={"emptySlot" + index} index={index} />
-          return <SaveSlot save={save} index={index} modifier={
+          return <SaveSlot key={save.uuid + "root"} save={save} index={index} modifier={
             save === latestSave ? "latest" : undefined
           } />
         })}
-        <NewSaveSlot />
+        <NewSaveSlot key={"saveSlotNew"} />
       </div>
     </ScrollArea>
   )

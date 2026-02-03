@@ -5,12 +5,15 @@ import { Content } from './components/Content'
 import { Footer } from './components/Footer'
 import { useEffect } from 'react'
 import { loadBackgroundState } from './lib/state'
+import { refreshUser, requestSync } from './lib/user'
 
 
 function App() {
-  useEffect(()=>{
+  useEffect(() => {
     loadBackgroundState()
-  },[])
+    refreshUser()
+    requestSync()
+  }, [])
   return (
     <>
       <Toaster closeButton={true} />

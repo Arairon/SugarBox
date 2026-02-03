@@ -14,24 +14,17 @@ const app: Router = Router();
 app.use(express.json({ limit: "50mb" }));
 app.use(basicLimiter);
 
-const SyncRequestSchema = z.object({
-  cutoffPoint: z.date({ coerce: true }),
-  games: z.boolean().default(true),
-  chars: z.boolean().default(true),
-  saves: z.boolean().default(true),
-});
-
 const SyncUpSchema = z.object({
   games: z.array(z.unknown()).default([]),
   chars: z.array(z.unknown()).default([]),
   saves: z.array(z.unknown()).default([]),
 });
 
-app.post("/up", async (req, res) => {
+app.post("/", async (req, res) => {
   const { data, success, error } = SyncUpSchema.safeParse(req.body);
   if (!success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: error.errors.map(formatZodIssue),
     });
     return;
@@ -39,13 +32,18 @@ app.post("/up", async (req, res) => {
   const auth = req.auth;
   if (!auth) {
     res.status(403).json({
-      status: "error",
+      ok: false,
       message: "Invalid auth token",
     });
     return;
   }
   const { games, chars, saves } = data;
   const errors = [] as (ZodError | string)[];
+  const payload = {
+    games: {} as Record<string, number>,
+    chars: {} as Record<string, number>,
+    saves: {} as Record<string, number>
+  }
   for (const rawgame of games) {
     const {
       data: game,
@@ -58,16 +56,19 @@ app.post("/up", async (req, res) => {
     }
     game.ownerId = auth.userId;
     try {
-      await db.game.upsert({
+      const res = await db.game.upsert({
         where: {
-          ownerId: auth.userId,
-          uuid: game.uuid,
+          ownerId_uuid: {
+            ownerId: auth.userId,
+            uuid: game.uuid,
+          }
         },
         update: game,
         create: game,
       });
+      payload.games[res.uuid] = res.id
     } catch (err) {
-      errors.push("Prisma error on game " + game.uuid);
+      errors.push("DB error on game " + game.uuid);
       log.warn(`Game syncUp err: ${err}`);
     }
   }
@@ -84,16 +85,19 @@ app.post("/up", async (req, res) => {
     }
     char.ownerId = auth.userId;
     try {
-      await db.char.upsert({
+      const res = await db.char.upsert({
         where: {
-          ownerId: auth.userId,
-          uuid: char.uuid,
+          ownerId_uuid: {
+            ownerId: auth.userId,
+            uuid: char.uuid,
+          }
         },
         update: char,
         create: char,
       });
+      payload.chars[res.uuid] = res.id
     } catch {
-      errors.push("Prisma error on char " + char.uuid);
+      errors.push("DB error on char " + char.uuid);
     }
   }
 
@@ -109,16 +113,19 @@ app.post("/up", async (req, res) => {
     }
     save.ownerId = auth.userId;
     try {
-      await db.save.upsert({
+      const res = await db.save.upsert({
         where: {
-          ownerId: auth.userId,
-          uuid: save.uuid,
+          ownerId_uuid: {
+            ownerId: auth.userId,
+            uuid: save.uuid,
+          }
         },
         update: save,
         create: save,
       });
+      payload.saves[res.uuid] = res.id
     } catch {
-      errors.push("Prisma error on save " + save.uuid);
+      errors.push("DB error on save " + save.uuid);
     }
   }
 
@@ -130,48 +137,54 @@ app.post("/up", async (req, res) => {
     },
   );
   res.status(200).json({
-    status: "ok",
+    ok: true,
     message: "Synced",
     data: {
       errors,
+      ...payload
     },
   });
 });
 
-app.get("/down", async (req, res) => {
-  const {
-    data: params,
-    success,
-    error,
-  } = SyncRequestSchema.safeParse(req.query);
+const SyncRequestParamsSchema = z.object({
+  cutoffPoint: z.coerce.number().default(0),
+  games: z.coerce.boolean().default(true),
+  chars: z.coerce.boolean().default(true),
+  saves: z.coerce.boolean().default(true),
+
+})
+
+app.get("/", async (req, res) => {
+  const auth = req.auth;
+  if (!auth) {
+    res.status(401).json({
+      ok: false,
+      message: "Unauthorized",
+    });
+    return;
+  }
+  const { success, data: params, error } = SyncRequestParamsSchema.safeParse(req.query)
   if (!success) {
     res.status(400).json({
-      status: "error",
+      ok: false,
       message: error.errors.map(formatZodIssue),
     });
     return;
   }
-  const auth = req.auth;
-  if (!auth) {
-    res.status(403).json({
-      status: "error",
-      message: "Invalid auth token",
-    });
-    return;
-  }
-  const { cutoffPoint, games, chars, saves } = params;
+  const { cutoffPoint: cutoffPointMs, games, chars, saves } = params
+  const cutoffPoint = new Date(cutoffPointMs)
   const resp = {
     games: [] as GameObj[],
     chars: [] as CharObj[],
     saves: [] as SaveObj[],
   };
-  const archived = cutoffPoint.getTime() === 0 ? false : undefined;
+  //const archived = cutoffPoint.getTime() === 0 ? false : undefined;
   if (games) {
     resp.games = (
       await db.game.findMany({
         where: {
           ownerId: auth.userId,
-          archived: archived,
+          // archived: archived,
           updatedAt: {
             gte: cutoffPoint,
           },
@@ -184,7 +197,7 @@ app.get("/down", async (req, res) => {
       await db.char.findMany({
         where: {
           ownerId: auth.userId,
-          archived: archived,
+          // archived: archived,
           updatedAt: {
             gte: cutoffPoint,
           },
@@ -197,7 +210,7 @@ app.get("/down", async (req, res) => {
       await db.save.findMany({
         where: {
           ownerId: auth.userId,
-          archived: archived,
+          // archived: archived,
           updatedAt: {
             gte: cutoffPoint,
           },
@@ -207,8 +220,7 @@ app.get("/down", async (req, res) => {
   }
 
   log.info(
-    `Sync downloaded ${resp.games.length}g, ${resp.chars.length}c, ${
-      resp.saves.length
+    `Sync downloaded ${resp.games.length}g, ${resp.chars.length}c, ${resp.saves.length
     }s. [${cutoffPoint.toJSON()}]`,
     {
       user: auth.userId,
@@ -216,8 +228,8 @@ app.get("/down", async (req, res) => {
     },
   );
   res.status(200).json({
-    status: "ok",
-    message: "Found data for sync",
+    ok: true,
+    message: "Sending data",
     data: resp,
   });
 });

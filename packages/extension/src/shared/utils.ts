@@ -17,6 +17,14 @@ export function formatTime(rawdate: string | number | Date, file = false) {
   return `${h}:${m} ${y}-${M}-${d}`;
 }
 
+export function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1000;
+  const sizes = ['B', 'kB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return (bytes / Math.pow(k, i)).toFixed(i > 1 ? 2 : 1) + sizes[i];
+}
+
 export function delay(ms: number) {
   return new Promise(res => setTimeout(res, ms));
 }

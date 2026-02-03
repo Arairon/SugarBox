@@ -4,6 +4,7 @@ import { state } from "./logic/state";
 import { onMessage } from "webext-bridge/background";
 import "./logic/page"
 import "./logic/api"
+import "./logic/sync"
 
 onMessage("bg_ping", () => "pong" as const)
 
