@@ -81,7 +81,7 @@ function EditGeneral({ game }: { game: GameObj }) {
     const res = await sendMessage("bg_game_edit", newGame)
     if (res.ok) {
       toast("Edited successfully", { duration: 1000 })
-      setGame(res.game)
+      // setGame(res.game)
       loadBackgroundState() // TODO: Replace with BG triggered updates
     } else {
       toast.error(res.message, { duration: 2500 })
@@ -94,7 +94,7 @@ function EditGeneral({ game }: { game: GameObj }) {
     const res = await sendMessage("bg_game_edit", newGame)
     if (res.ok) {
       toast("Edited successfully", { duration: 1000 })
-      setGame(res.game)
+      // setGame(res.game)
       loadBackgroundState() // TODO: Replace with BG triggered updates
     } else {
       toast.error(res.message, { duration: 2500 })

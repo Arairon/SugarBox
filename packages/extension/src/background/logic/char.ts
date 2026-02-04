@@ -103,8 +103,21 @@ function parseDownloaded(char: unknown) {
   return CharDownloadSchema.parse(char)
 }
 
+function validateSlots(char: CharObj) {
+  const encounteredUuids: string[] = []
+  for (let i = 0; i < char.slots.length; i++) {
+    const uuid = char.slots[i]
+    if (encounteredUuids.includes(uuid)) {
+      char.slots[i] = ""
+    } else {
+      encounteredUuids.push(uuid)
+    }
+  }
+}
+
 async function commit(char: CharObj) {
   char.updatedAt = Date.now()
+  validateSlots(char)
   if (char.id === -1) {
     char.id = await db.chars.put(Object.assign(char, { id: undefined }))
   } else {
@@ -122,7 +135,7 @@ async function commit(char: CharObj) {
 }
 
 async function archive(char: CharObj) {
-  if (char.archived) return {affectedSaves: []};
+  if (char.archived) return { affectedSaves: [] };
   char.archived = 1;
   char.archivedAt = Date.now();
   const saves = await db.saves
@@ -141,8 +154,8 @@ async function archive(char: CharObj) {
 }
 
 async function restore(char: CharObj) {
-  const game = await db.games.get({uuid: char.gameId})
-  if (!game) return {ok: false as const, message: "Unable to restore related game"}
+  const game = await db.games.get({ uuid: char.gameId })
+  if (!game) return { ok: false as const, message: "Unable to restore related game" }
 
   if (game.archived) {
     await Game.restore(game);
@@ -152,7 +165,7 @@ async function restore(char: CharObj) {
   char.archivedAt = 0
 
   await Char.commit(char)
-  return {ok: true as const}
+  return { ok: true as const }
 }
 
 onMessage("bg_char_archive", async (msg) => {

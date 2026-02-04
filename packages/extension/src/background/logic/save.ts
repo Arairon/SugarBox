@@ -199,7 +199,8 @@ async function restore(save: SaveObj) {
 
   save.archived = 0
   save.archivedAt = 0
-  char.slots.push(save.uuid)
+  if (!char.slots.includes(save.uuid))
+    char.slots.push(save.uuid)
 
   await Char.commit(char)
   await Save.commit(save)

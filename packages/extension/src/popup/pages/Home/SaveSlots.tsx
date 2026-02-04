@@ -3,6 +3,7 @@ import { db } from "@/popup/lib/db";
 import { loadBackgroundState, useSugarBoxState } from "@/popup/lib/state";
 import { Button, DoubleClickButton } from "@/shared/components/ui/button";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
+import { Spinner } from "@/shared/components/ui/spinner";
 import type { SaveObj } from "@/shared/types";
 import { formatTime } from "@/shared/utils";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -13,6 +14,7 @@ import { sendMessage } from "webext-bridge/popup";
 
 
 function EmptySaveSlot({ index }: { index: number }) {
+  const [isLoading, setLoading] = useState(false)
   const { char } = useSugarBoxState();
 
   async function removeSlot() {
@@ -27,11 +29,13 @@ function EmptySaveSlot({ index }: { index: number }) {
   }
 
   async function save() {
+    setLoading(true)
     const res = await sendMessage("bg_save_new", index, "background")
     if (!res.ok) {
       toast.error("Error", { description: res.message })
     }
     loadBackgroundState()
+    setLoading(false)
   }
 
   return (
@@ -41,25 +45,35 @@ function EmptySaveSlot({ index }: { index: number }) {
         <a>[ Empty slot ]</a>
       </Button>
       <div className="flex w-30 items-center">
-        <Button variant={"outline"} onClick={save} className="flex-1 rounded-r-none" size={"icon"}>
-          <DownloadIcon />
-        </Button>
-        <DoubleClickButton
-          size={"icon"}
-          variant={"outline"}
-          className="rounded-l-none"
-          confirmClassName=""
-          onAccept={removeSlot}
-        >
-          <TrashIcon />
-        </DoubleClickButton>
-      </div>
-    </div>
+        {isLoading ? (
+          <Button variant={"outline"} className="flex-1" size={"icon"}>
+            <Spinner />
+          </Button>
+        ) : (
+          <>
+            <Button variant={"outline"} onClick={save} className="flex-1 rounded-r-none" size={"icon"}>
+              <DownloadIcon />
+            </Button>
+            <DoubleClickButton
+              size={"icon"}
+              variant={"outline"}
+              className="rounded-l-none"
+              confirmClassName=""
+              onAccept={removeSlot}
+            >
+              <TrashIcon />
+            </DoubleClickButton>
+          </>
+        )
+        }
+      </div >
+    </div >
   )
 }
 
 
 function NewSaveSlot() {
+  const [isLoading, setLoading] = useState(false)
   const { char } = useSugarBoxState();
 
   async function addSlot() {
@@ -74,11 +88,13 @@ function NewSaveSlot() {
   }
 
   async function save() {
+    setLoading(true)
     const res = await sendMessage("bg_save_new", -1, "background")
     if (!res.ok) {
       toast.error("Error", { description: res.message })
     }
     loadBackgroundState()
+    setLoading(false)
   }
 
   return (
@@ -88,17 +104,25 @@ function NewSaveSlot() {
         New save slot
       </Button>
       <div className="flex w-30 items-center">
-        <Button variant={"outline"} onClick={save} className="flex-1" size={"icon"}>
-          <DownloadIcon />
-        </Button>
+        {isLoading ? (
+          <Button variant={"outline"} className="flex-1" size={"icon"}>
+            <Spinner />
+          </Button>
+
+        ) : (
+          <Button variant={"outline"} onClick={save} className="flex-1" size={"icon"}>
+            <DownloadIcon />
+          </Button>
+        )}
       </div>
-    </div>
+    </div >
   )
 }
 
 
 
 function SaveSlot({ save, index, modifier }: { save: SaveObj, index: number, modifier: undefined | "recent" | "latest" }) {
+  const [isLoading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
   let recencyColor = "text-gray-300"
@@ -108,27 +132,33 @@ function SaveSlot({ save, index, modifier }: { save: SaveObj, index: number, mod
   else if (modifier === "recent" || Date.now() - save.createdAt < 3600000) recencyColor = "text-cyan-500"
 
   async function overwriteSave() {
+    setLoading(true)
     const res = await sendMessage("bg_save_new", index, "background")
     if (!res.ok) {
       toast.error("Error", { description: res.message })
     }
     loadBackgroundState()
+    setLoading(false)
   }
 
   async function loadSave() {
+    setLoading(true)
     const res = await sendMessage("bg_save_load", save, "background")
     if (!res.ok) {
       toast.error("Error", { description: res.message })
     }
     loadBackgroundState()
+    setLoading(false)
   }
 
   async function deleteSave() {
+    setLoading(true)
     const res = await sendMessage("bg_save_archive", save, "background")
     if (!res.ok) {
       toast.error("Error", { description: res.message })
     }
     loadBackgroundState()
+    setLoading(false)
   }
 
   const saveTime = formatTime(save.createdAt).split(" ")
@@ -136,33 +166,41 @@ function SaveSlot({ save, index, modifier }: { save: SaveObj, index: number, mod
     <>
       <div key={save.uuid} className="flex items-stretch gap-2 px-2 py-1 font-mono transition-colors hover:bg-accent/50">
         <a className="flex flex-col justify-center">{index + 1}</a>
-        <div className="flex min-w-0 flex-1 cursor-pointer flex-col" onClick={() => setExpanded(!expanded)}>
-          <a className="truncate">{save.name}</a>
-          <a className="truncate text-foreground/70">{save.description}</a>
+        <div className="flex min-w-0 flex-1 cursor-pointer flex-col justify-center gap-1" onClick={() => setExpanded(!expanded)}>
+          <a className="truncate leading-none">{save.name}</a>
+          <a className="truncate leading-none text-foreground/70">{save.description}</a>
         </div>
-        <div className={"flex flex-col items-center cursor-pointer " + recencyColor} onClick={() => setExpanded(!expanded)}>
-          <a>{saveTime[0]}</a>
-          <a>{saveTime[1]}</a>
+        <div className={"flex flex-col items-center justify-center gap-1 cursor-pointer " + recencyColor} onClick={() => setExpanded(!expanded)}>
+          <a className="leading-none">{saveTime[0]}</a>
+          <a className="leading-none">{saveTime[1]}</a>
         </div>
         <div className="flex w-30 items-center">
-          <Button variant={"outline"} onClick={overwriteSave} className="flex-1 rounded-r-none" size={"icon"}>
-            <DownloadIcon />
-          </Button>
-          <Button variant={"outline"} onClick={loadSave} className="flex-1 rounded-none" size={"icon"}>
-            <UploadIcon />
-          </Button>
-          <DoubleClickButton
-            size={"icon"}
-            variant={"outline"}
-            className="rounded-l-none"
-            confirmClassName=""
-            onAccept={deleteSave}
-          >
-            <TrashIcon />
-          </DoubleClickButton>
+          {isLoading ? (
+            <Button variant={"outline"} className="flex-1" size={"icon"}>
+              <Spinner />
+            </Button>
+          ) : (
+            <>
+              <Button variant={"outline"} onClick={overwriteSave} className="flex-1 rounded-r-none" size={"icon"}>
+                <DownloadIcon />
+              </Button>
+              <Button variant={"outline"} onClick={loadSave} className="flex-1 rounded-none" size={"icon"}>
+                <UploadIcon />
+              </Button>
+              <DoubleClickButton
+                size={"icon"}
+                variant={"outline"}
+                className="rounded-l-none"
+                confirmClassName=""
+                onAccept={deleteSave}
+              >
+                <TrashIcon />
+              </DoubleClickButton>
+            </>
+          )}
         </div>
       </div>
-      {expanded && <SaveDetails key={save.uuid + "details"} save={save} />}
+      {expanded && <SaveDetails key={save.uuid + "-details"} save={save} />}
     </>
   )
 }
@@ -193,7 +231,7 @@ export default function SaveSlots() {
       <div className="divide-y divide-slate-600">
         {saves.map((save, index) => {
           if (!save) return <EmptySaveSlot key={"emptySlot" + index} index={index} />
-          return <SaveSlot key={save.uuid + "root"} save={save} index={index} modifier={
+          return <SaveSlot key={save.uuid + "-component"} save={save} index={index} modifier={
             save === latestSave ? "latest" : undefined
           } />
         })}

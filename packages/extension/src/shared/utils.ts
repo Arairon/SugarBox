@@ -22,7 +22,7 @@ export function formatBytes(bytes: number): string {
   const k = 1000;
   const sizes = ['B', 'kB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return (bytes / Math.pow(k, i)).toFixed(i > 1 ? 2 : 1) + sizes[i];
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + sizes[i];
 }
 
 export function delay(ms: number) {

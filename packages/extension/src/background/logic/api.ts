@@ -171,7 +171,6 @@ async function refreshUser() {
 
 let lastRefreshTime = 0
 onMessage("bg_user_refresh", async () => {
-  console.log("Ref")
   if (Date.now() - lastRefreshTime > 10_000) {
     lastRefreshTime = Date.now()
     await refreshUser()
@@ -294,7 +293,7 @@ async function getServerVersion(baseURL = undefined as undefined | string) {
     User.goOffline("Fatal error during 'version' request")
     return { ok: false as const, message: "Unable to contact server" }
   }
-  const { success, data: res } = ServerVersionResponseSchema.safeParse(data.data)
+  const { success, data: res } = ServerVersionResponseSchema.safeParse(data)
   if (!success) {
     return { ok: false as const, message: "Invalid response from server" }
   }
