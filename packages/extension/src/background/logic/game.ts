@@ -10,17 +10,19 @@ const urlToGameMap = new Map<string, GameObj>()
 
 async function rebuildUrlToGameMap() {
   urlToGameMap.clear()
-  await db.games.each((game: GameObj) => {
-    game.paths.map(path => {
-      if (path.url.startsWith("ERR"))
-        return;
-      if (urlToGameMap.has(path.url)) {
-        path.url = "ERR: Duped: " + path.url
-        return
-      }
-      urlToGameMap.set(path.url, game)
+  await db.games
+    .where("archived").equals(0)
+    .each((game: GameObj) => {
+      game.paths.map(path => {
+        if (path.url.startsWith("ERR"))
+          return;
+        if (urlToGameMap.has(path.url)) {
+          path.url = "ERR: Duped: " + path.url
+          return
+        }
+        urlToGameMap.set(path.url, game)
+      })
     })
-  })
 }
 
 rebuildUrlToGameMap()
@@ -97,6 +99,7 @@ function parseDownloaded(game: unknown) {
 }
 
 async function commit(game: GameObj) {
+  game.updatedAt = Date.now()
   if (game.id === -1) {
     game.id = await db.games.put(Object.assign(game, { id: undefined }))
   } else {
@@ -125,10 +128,29 @@ async function archive(game: GameObj) {
     await Char.commit(char);
     saves.push(...res.affectedSaves);
   }
+  await commit(game)
   return {
     affectedChars: chars,
     affectedSaves: saves
   }
+}
+
+async function restore(game: GameObj) {
+  game.archived = 0
+  game.archivedAt = 0
+
+  const games = await db.games.where("archived").equals(0).toArray()
+  game.paths = game.paths.filter((path) => { // Filter already taken paths
+    for (const i of games) {
+      if (i.uuid === game.uuid) continue
+      if (i.paths.map(p => p.url).includes(path.url)) {
+        return false
+      }
+    }
+    return true
+  })
+
+  return commit(game)
 }
 
 onMessage("bg_game_edit", async (msg) => {
@@ -170,6 +192,7 @@ export const Game = {
   validate,
   commit,
   archive,
+  restore,
   prepareForUpload,
   parseDownloaded,
 }

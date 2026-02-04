@@ -1,20 +1,40 @@
-FROM node:23-alpine AS build
+FROM oven/bun:1.3.1-alpine AS deps
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+# required by better-sqlite3
+#RUN apk add --update --no-cache python3 build-base gcc && ln -sf /usr/bin/python3 /usr/bin/python;
 
-RUN npm install -g pnpm && pnpm install
+COPY package.json .
 
-COPY prisma/ .
-COPY src/ .
+RUN bun i;
+
+FROM deps AS build
+
+WORKDIR /app
+
+COPY prisma/ prisma
+COPY src/ src
 COPY swagger.yml .
 COPY tsconfig.json .
 COPY swagger.yml .
-COPY entrypoint.sh .
 
-RUN npx prisma generate
-RUN npm run build
+RUN bun db:generate;
+RUN bun run build;
+
+FROM oven/bun:1.3.1-alpine AS runner
+
+WORKDIR /app
+
+COPY entrypoint.sh .
+COPY prisma/ prisma
+COPY --from=build /app/dist/ dist
+COPY swagger.yml .
+COPY package.json .
+COPY prisma.config.ts .
+COPY package.json .
+
+RUN bun i --production;
 
 ENV PORT=3000
 ENV LOG_LEVEL="info"

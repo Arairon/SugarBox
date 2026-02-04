@@ -3,9 +3,9 @@ import bodyParser from "body-parser";
 import { Router } from "express";
 import { basicLimiter, generateAdminToken, requireAuth } from "./auth";
 import { db } from "@/db";
-import { user_role } from "@prisma/client";
 import { z } from "zod";
 import log from "../logger";
+import { user_role } from "@/generated/prisma/enums";
 
 const app: Router = Router();
 

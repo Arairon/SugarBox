@@ -19,6 +19,7 @@ declare module "webext-bridge" {
     bg_save_archive: ProtocolWithReturn<SaveObj, ReturnObject>
     bg_save_new: ProtocolWithReturn<undefined | number, ReturnObject<{ save: SaveObj }>>
     bg_save_load: ProtocolWithReturn<SaveObj, ReturnObject>
+    bg_save_restore: ProtocolWithReturn<SaveObj, ReturnObject>
     bg_user_refresh: ProtocolWithReturn<undefined, UserObj>
     bg_user_refresh_force: ProtocolWithReturn<undefined, UserObj>
     bg_user_register: ProtocolWithReturn<{ email: string, username: string, password: string }, ReturnObject<{ user: UserObj }>>

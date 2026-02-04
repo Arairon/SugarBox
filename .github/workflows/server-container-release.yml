@@ -20,7 +20,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build the container
-        run: docker build ./server --tag ghcr.io/arairon/sugarbox:latest --tag ghcr.io/arairon/sugarbox:${{ github.ref_name }}
+        run: docker build ./packages/server --tag ghcr.io/arairon/sugarbox:latest --tag ghcr.io/arairon/sugarbox:${{ github.ref_name }}
 
       - name: Push the container
         run: |

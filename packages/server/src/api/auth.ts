@@ -1,7 +1,6 @@
 import argon2 from "argon2";
 import { randomBytes } from "crypto";
 import { db } from "@/db";
-import { user_role } from "@prisma/client";
 import { NextFunction, Router, Request, Response } from "express";
 import bodyParser from "body-parser";
 import jwt from "jsonwebtoken";
@@ -10,7 +9,7 @@ import env from "@/env";
 import { z } from "zod";
 import ms, { StringValue } from "ms";
 import rateLimit from "express-rate-limit";
-import { Session, User } from "@/generated/prisma/client";
+import { Session, User, user_role } from "@/generated/prisma/client";
 
 export const basicLimiter = rateLimit({
   windowMs: 30000,

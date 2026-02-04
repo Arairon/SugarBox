@@ -143,7 +143,7 @@ async function logout() {
 
 
 async function refreshUser() {
-  if (!User.isOnline()) return
+  if (!state.user.onlineMode) return
   const api = getApi()
   try {
     const req = await api.get("user")
@@ -169,8 +169,9 @@ async function refreshUser() {
   }
 }
 
-let lastRefreshTime = Date.now()
+let lastRefreshTime = 0
 onMessage("bg_user_refresh", async () => {
+  console.log("Ref")
   if (Date.now() - lastRefreshTime > 10_000) {
     lastRefreshTime = Date.now()
     await refreshUser()

@@ -7,6 +7,7 @@ import Utils from "./Utils.tsx"
 import Account from "./Account/Account.tsx"
 import Login from "./Account/Login.tsx"
 import Register from "./Account/Register.tsx"
+import Trash from "./Trash.tsx"
 
 export const pages = {
   home: Home,
@@ -21,4 +22,5 @@ export const nonActivityPages = {
   login: Login,
   register: Register,
   error: Error,
+  trash: Trash,
 } as const

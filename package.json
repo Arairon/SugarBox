@@ -1,4 +1,5 @@
 {
+  "$schema": "https://json.schemastore.org/package",
   "name": "sugarbox",
   "private": true,
   "workspaces": [

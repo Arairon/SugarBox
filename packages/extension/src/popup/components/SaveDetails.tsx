@@ -3,7 +3,7 @@ import { ClipboardIcon, FileDownIcon } from "lucide-react"
 import { toast } from "sonner"
 import { exportSaveToFile } from "../lib/save"
 import type { SaveObj } from "@/shared/types"
-import { formatBytes } from "@/shared/utils"
+import { formatBytes, formatTime } from "@/shared/utils"
 
 export function SaveDetails({ save }: { save: SaveObj }) {
   function exportToClipboard() {
@@ -18,6 +18,9 @@ export function SaveDetails({ save }: { save: SaveObj }) {
           <a className="font-semibold">{save.name}</a>
           <p className="text-sm text-pretty text-foreground/70">{save.description}</p>
           <a className="text-foreground/70">Game version: {save.gameVersion}</a>
+          {save.archived ? (
+            <a className="text-foreground/70">Archived: {formatTime(save.archivedAt)}</a>
+          ) : <></>}
         </div>
         <div className="flex flex-col text-right text-foreground/70">
           <div className="flex">
@@ -30,7 +33,6 @@ export function SaveDetails({ save }: { save: SaveObj }) {
           </div>
           <a className="mr-2">{save.remoteId !== -1 ? "synced" : "local"}</a>
           <a className="mr-2">{formatBytes(save.data.length)}</a>
-
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { onMessage } from "webext-bridge/background";
 import { Save } from "./save";
 import z from "zod";
 import { Sync } from "./sync";
+import { Game } from "./game";
 
 const latestCharMap: Record<number, number> = {}; // GameID: CharID
 
@@ -121,6 +122,7 @@ async function commit(char: CharObj) {
 }
 
 async function archive(char: CharObj) {
+  if (char.archived) return {affectedSaves: []};
   char.archived = 1;
   char.archivedAt = Date.now();
   const saves = await db.saves
@@ -131,10 +133,26 @@ async function archive(char: CharObj) {
   saves.map((s) => {
     Save.archive(s);
   });
+  char.slots.length = 0
   await Save.bulkCommit(saves)
   return {
     affectedSaves: saves,
   };
+}
+
+async function restore(char: CharObj) {
+  const game = await db.games.get({uuid: char.gameId})
+  if (!game) return {ok: false as const, message: "Unable to restore related game"}
+
+  if (game.archived) {
+    await Game.restore(game);
+  }
+
+  char.archived = 0
+  char.archivedAt = 0
+
+  await Char.commit(char)
+  return {ok: true as const}
 }
 
 onMessage("bg_char_archive", async (msg) => {
@@ -187,6 +205,7 @@ export const Char = {
   loadLatestCharMap,
   switchTo,
   archive,
+  restore,
   commit,
   getSaves,
   prepareForUpload,

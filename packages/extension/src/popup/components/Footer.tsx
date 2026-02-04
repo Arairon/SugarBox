@@ -2,7 +2,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { Button } from "@/shared/components/ui/button";
 import { loadBackgroundState, useSugarBoxState } from "../lib/state";
-import { CloudOffIcon, GlobeIcon, GlobeLockIcon, HardDriveIcon, LogInIcon, LogOutIcon, User2Icon, UserPlus2Icon, WrenchIcon } from "lucide-react";
+import { CloudOffIcon, GlobeIcon, GlobeLockIcon, HardDriveIcon, LogInIcon, LogOutIcon, TrashIcon, User2Icon, UserPlus2Icon, WrenchIcon } from "lucide-react";
 import { Switch } from "@/shared/components/ui/switch";
 import { logout, toggleOnlineMode } from "../lib/user";
 import { toast } from "sonner";
@@ -51,7 +51,7 @@ border-x-2 border-cyan-700 px-4 font-mono hover:border-cyan-500 hover:bg-backgro
       <DropdownMenuContent>
         <DropdownMenuItem onClick={(e) => {
           e.preventDefault()
-          toggleOnlineMode().then(()=>{
+          toggleOnlineMode().then(() => {
             loadBackgroundState()
           })
         }}>
@@ -100,10 +100,13 @@ export function Footer() {
   return (
     <footer className='flex h-10 flex-row border-t-3 border-double border-header-border bg-header px-2'>
       <Button variant={"ghost"} onClick={() => setPage(page === "utils" ? "home" : "utils")}
-        className="rounded-none border-x-2 border-cyan-700 hover:border-cyan-500 hover:bg-background/30">
+        className="rounded-none border-r border-l-2 border-cyan-700 hover:border-cyan-500 hover:bg-background/30">
         <WrenchIcon />
       </Button>
-      {/* TODO: Trash page */}
+      <Button variant={"ghost"} onClick={() => setPage(page === "trash" ? "home" : "trash")}
+        className="rounded-none border-r-2 border-l border-cyan-700 hover:border-cyan-500 hover:bg-background/30">
+        <TrashIcon />
+      </Button>
       <div className="flex-1"></div>
       <UserMenu />
     </footer>

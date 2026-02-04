@@ -100,6 +100,7 @@ const SaveUpdSchema = SaveSchema.omit({ data: true }).merge(
 );
 
 app.get("/uuid/:saveId", async (req, res) => {
+  if (!req.auth) return res.status(401).json({ ok: false, message: "Unauthorized" })
   const uuidParse = z.string().uuid().safeParse(req.params.saveId);
   if (!uuidParse.success) {
     res.status(400).json({
@@ -112,8 +113,10 @@ app.get("/uuid/:saveId", async (req, res) => {
   const saveId = uuidParse.data;
   const save = await db.char.findUnique({
     where: {
-      uuid: saveId,
-      ownerId: req.auth?.userId,
+      ownerId_uuid: {
+        uuid: saveId,
+        ownerId: req.auth.userId,
+      }
     },
   });
   if (!save) {
@@ -131,6 +134,7 @@ app.get("/uuid/:saveId", async (req, res) => {
 });
 
 app.patch("/uuid/:saveId", async (req, res) => {
+  if (!req.auth) return res.status(401).json({ ok: false, message: "Unauthorized" })
   const uuidParse = z.string().uuid().safeParse(req.params.saveId);
   if (!uuidParse.success) {
     res.status(400).json({
@@ -140,15 +144,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
     return;
   }
   const saveId = uuidParse.data;
-
   const auth = req.auth;
-  if (!auth) {
-    res.status(403).json({
-      ok: false,
-      message: "Invalid auth token",
-    });
-    return;
-  }
 
   const {
     data: saveData,
@@ -168,8 +164,10 @@ app.patch("/uuid/:saveId", async (req, res) => {
     if (saveData.data) saveData.size = saveData.data.length;
     const save = await db.save.upsert({
       where: {
-        uuid: saveId,
-        ownerId: auth.userId,
+        ownerId_uuid: {
+          uuid: saveId,
+          ownerId: auth.userId,
+        }
       },
       update: saveData,
       create: saveData as SaveObj,
@@ -192,6 +190,7 @@ app.patch("/uuid/:saveId", async (req, res) => {
 });
 
 app.patch("/uuid/:saveId", async (req, res) => {
+  if (!req.auth) return res.status(401).json({ ok: false, message: "Unauthorized" })
   const uuidParse = z.string().uuid().safeParse(req.params.saveId);
   if (!uuidParse.success) {
     res.status(400).json({
@@ -200,22 +199,17 @@ app.patch("/uuid/:saveId", async (req, res) => {
     });
     return;
   }
-  const saveId = uuidParse.data;
 
+  const saveId = uuidParse.data;
   const auth = req.auth;
-  if (!auth) {
-    res.status(403).json({
-      ok: false,
-      message: "Invalid auth token",
-    });
-    return;
-  }
 
   try {
     await db.save.delete({
       where: {
-        uuid: saveId,
-        ownerId: auth.userId,
+        ownerId_uuid: {
+          uuid: saveId,
+          ownerId: auth.userId,
+        }
       },
     });
     res.status(200).json({

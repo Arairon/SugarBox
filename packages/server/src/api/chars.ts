@@ -22,6 +22,7 @@ app.get("/", async (req, res) => {
 });
 
 app.get("/uuid/:charId", async (req, res) => {
+  if (!req.auth) return res.status(401).json({ ok: false, message: "Unauthorized" })
   const uuidParse = z.string().uuid().safeParse(req.params.charId);
   if (!uuidParse.success) {
     res.status(400).json({
@@ -34,8 +35,10 @@ app.get("/uuid/:charId", async (req, res) => {
   const charId = uuidParse.data;
   const char = await db.char.findUnique({
     where: {
-      uuid: charId,
-      ownerId: req.auth?.userId,
+      ownerId_uuid: {
+        uuid: charId,
+        ownerId: req.auth.userId,
+      }
     },
   });
   if (!char) {
@@ -174,6 +177,7 @@ app.post("/new", async (req, res) => {
 });
 
 app.patch("/uuid/:charId", async (req, res) => {
+  if (!req.auth) return res.status(401).json({ ok: false, message: "Unauthorized" })
   const uuidParse = z.string().uuid().safeParse(req.params.charId);
   if (!uuidParse.success) {
     res.status(400).json({
@@ -184,13 +188,6 @@ app.patch("/uuid/:charId", async (req, res) => {
   }
   const charId = uuidParse.data;
   const auth = req.auth;
-  if (!auth) {
-    res.status(403).json({
-      ok: false,
-      message: "Invalid auth token",
-    });
-    return;
-  }
 
   const {
     data: charData,
@@ -209,8 +206,10 @@ app.patch("/uuid/:charId", async (req, res) => {
     charData.ownerId = auth.userId;
     const char = await db.char.upsert({
       where: {
-        uuid: charId,
-        ownerId: auth.userId ?? 0,
+        ownerId_uuid: {
+          uuid: charId,
+          ownerId: auth.userId
+        }
       },
       update: charData,
       create: charData,
@@ -232,6 +231,7 @@ app.patch("/uuid/:charId", async (req, res) => {
 });
 
 app.delete("/uuid/:charId", async (req, res) => {
+  if (!req.auth) return res.status(401).json({ ok: false, message: "Unauthorized" })
   const uuidParse = z.string().uuid().safeParse(req.params.charId);
   if (!uuidParse.success) {
     res.status(400).json({
@@ -242,13 +242,6 @@ app.delete("/uuid/:charId", async (req, res) => {
   }
   const charId = uuidParse.data;
   const auth = req.auth;
-  if (!auth) {
-    res.status(403).json({
-      ok: false,
-      message: "Invalid auth token",
-    });
-    return;
-  }
   try {
     // await db.char.update({
     //   where: {
@@ -262,8 +255,10 @@ app.delete("/uuid/:charId", async (req, res) => {
     // });
     await db.char.delete({
       where: {
-        uuid: charId,
-        ownerId: auth.userId ?? 0,
+        ownerId_uuid: {
+          uuid: charId,
+          ownerId: auth.userId
+        }
       },
     });
     res.status(200).json({

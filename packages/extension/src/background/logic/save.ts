@@ -7,6 +7,7 @@ import { state } from "./state";
 import { Char } from "./char";
 import z from "zod";
 import { Sync } from "./sync";
+import { Game } from "./game";
 
 
 export const SaveUploadSchema = z.object({
@@ -82,6 +83,7 @@ async function bulkCommit(saves: SaveObj[]) {
 }
 
 function archive(save: SaveObj) {
+  if (save.archived) return
   save.archived = 1;
   save.archivedAt = Date.now();
 }
@@ -186,9 +188,40 @@ onMessage("bg_save_load", async (msg) => {
   return { ok: true as const }
 })
 
+async function restore(save: SaveObj) {
+  const game = await db.games.get({ uuid: save.gameId })
+  if (!game) return { ok: false as const, message: "Unable to restore related game" }
+  const char = await db.chars.get({ uuid: save.charId })
+  if (!char) return { ok: false as const, message: "Unable to restore related character" }
+
+  if (game.archived) await Game.restore(game)
+  if (char.archived) await Char.restore(char)
+
+  save.archived = 0
+  save.archivedAt = 0
+  char.slots.push(save.uuid)
+
+  await Char.commit(char)
+  await Save.commit(save)
+  return { ok: true as const }
+}
+
+onMessage("bg_save_restore", async (msg) => {
+  const { success, data: save, error } = validate(msg.data);
+  if (!success) {
+    return {
+      ok: false as const,
+      message: error.message
+    }
+  }
+
+  return await restore(save)
+})
+
 
 export const Save = {
   archive,
+  restore,
   commit,
   bulkCommit,
   prepareForUpload,

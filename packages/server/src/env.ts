@@ -11,7 +11,7 @@ const envVariables = z.object({
   AUTH_SECRET:
     process.env.NODE_ENV === "production"
       ? z.string()
-      : z.string().default("do-not-use-in-prod"),
+      : z.string().default("replace-in-prod"),
   ACCESS_TOKEN_LIFESPAN: z.string().default("10m"),
   REFRESH_TOKEN_LIFESPAN: z.string().default("60d"),
   DATABASE_URL: z.string().url().default("file:../db/sugarbox.sqlite"),
@@ -19,8 +19,8 @@ const envVariables = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
-  STORAGE_QUOTA_USER: z.coerce.number().min(1).default(104857600), //100mb
-  STORAGE_QUOTA_ADMIN: z.coerce.number().min(1).default(1073741824), //1gb
+  STORAGE_QUOTA_USER: z.coerce.number().min(1).default(100_000_000), //100mb
+  STORAGE_QUOTA_ADMIN: z.coerce.number().min(1).default(1_000_000_000), //1gb
   REGISTERED_USERS_LIMITED: envBoolean.default("false"),
   ENABLE_ADMIN_TOKEN: envBoolean.default("false"),
 });

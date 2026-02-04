@@ -19,7 +19,7 @@ export default function Utils() {
   return (
     <ScrollArea className="min-h-0 flex-1">
       <div className="flex flex-col items-stretch divide-y divide-slate-700">
-        <div className="flex flex-col items-center justify-center border-b-2 border-cyan-700 p-2 pb-1">
+        <div className="flex flex-col items-center justify-center border-b-2 border-cyan-700 p-2 pb-1 font-bold">
           Utilities
         </div>
         <StorageInfo />
