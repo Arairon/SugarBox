@@ -72,29 +72,22 @@ function DoubleClickButton({
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
-  } & {onAccept: ()=>void, confirmClassName?: string, timeout?: 3000}) {
+  } & { onAccept: () => void, confirmClassName?: string, timeout?: 3000 }) {
   const [clicked, setClicked] = React.useState(false)
-  
+
   function click() {
-    setClicked(true)
-    setTimeout(()=>setClicked(false), timeout || 3000)
+    if (!clicked) {
+      setClicked(true)
+      setTimeout(() => setClicked(false), timeout || 3000)
+      return
+    }
+    onAccept()
+    setClicked(false)
   }
 
-  if (clicked) return (
-    <Button
-      className={cn(className, "dark:border-red-700 dark:bg-red-950 dark:hover:border-red-500 dark:hover:bg-red-950", confirmClassName)}
-      variant={variant}
-      size={size}
-      {...props}
-      onClick={()=>{
-        onAccept()
-        setClicked(false)
-      }}
-    />
-  )
   return (
     <Button
-      className={className}
+      className={clicked ? cn(className, "dark:border-red-700 dark:bg-red-950 dark:hover:border-red-500 dark:hover:bg-red-950", confirmClassName) : className}
       variant={variant}
       size={size}
       {...props}

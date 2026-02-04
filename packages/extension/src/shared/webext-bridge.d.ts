@@ -1,6 +1,7 @@
 import { ProtocolWithReturn } from "webext-bridge"
 import type { SugarBoxState } from "@/background/logic/state"
 import type { CharObj, GameObj, SaveObj, UserObj } from "./types"
+import type { Config } from "@/background/logic/config"
 
 type ReturnObject<T = unknown> = ({ ok: true } & T) | { ok: false, message: string }
 
@@ -24,7 +25,10 @@ declare module "webext-bridge" {
     bg_user_login: ProtocolWithReturn<{ username: string, password: string }, ReturnObject<{ user: UserObj }>>
     bg_user_logout: ProtocolWithReturn<undefined, ReturnObject>,
     bg_user_online_toggle: undefined
+    bg_user_get_quota: ProtocolWithReturn<undefined, ReturnObject<{ quota: number, usage: number }>>
     bg_sync_now: ProtocolWithReturn<undefined, { ok: boolean, message: string, downloaded: number, uploaded: number }>
     bg_sync: ProtocolWithReturn<undefined, { ok: boolean, message: string, downloaded: number, uploaded: number }>
+    bg_config_get: ProtocolWithReturn<undefined, Config>
+    bg_config_set: ProtocolWithReturn<Config, ReturnObject<{ message?: string, serverVersion?: { major: number, minor: number, patch: number, mod?: string } }>>
   }
 }

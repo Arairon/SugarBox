@@ -17,7 +17,7 @@ export default function CharacterSelection() {
 
   return (
     <main className="flex flex-1 flex-col items-stretch">
-      <div className="flex flex-col items-center justify-center border-b-2 border-cyan-700 p-2 pb-1 hover:bg-accent/10 disabled:pointer-events-none disabled:opacity-50">
+      <div className="flex flex-col items-center justify-center border-b-2 border-cyan-700 p-2 pb-1">
         Character Selection
       </div>
       <CharacterList game={game} availableAction="select" basePageSize={4} />

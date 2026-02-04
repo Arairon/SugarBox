@@ -246,6 +246,61 @@ async function syncDown(cutoffPoint: number) {
   return { ok: true as const, data: data.data }
 }
 
+const QuotaResponseSchema = z.object({
+  quota: z.number(),
+  usage: z.number()
+})
+
+async function getQuota() {
+  const api = getApi()
+  let data: ServerResponse;
+  try {
+    const res = await api.get("user/quota")
+    data = await res.json()
+  } catch {
+    User.goOffline("Fatal error during 'user/quota' request")
+    return { ok: false as const, message: "Unable to contact server" }
+  }
+  if (!data.ok || !data.data) {
+    return { ok: false as const, message: data.message || "Unknown error" }
+  }
+  const { success, data: res } = QuotaResponseSchema.safeParse(data.data)
+  if (!success) {
+    return { ok: false as const, message: "Invalid response from server" }
+  }
+
+  return { ok: true as const, ...res }
+}
+
+onMessage("bg_user_get_quota", async () => {
+  return await getQuota()
+})
+
+const ServerVersionResponseSchema = z.object({
+  major: z.number(),
+  minor: z.number(),
+  patch: z.number(),
+  mod: z.string().optional()
+})
+
+async function getServerVersion(baseURL = undefined as undefined | string) {
+  const api = getApi().extend({ prefixUrl: (baseURL ?? config.baseURL) + "api/" })
+  let data: ServerResponse;
+  try {
+    const res = await api.get("version")
+    data = await res.json()
+  } catch {
+    User.goOffline("Fatal error during 'version' request")
+    return { ok: false as const, message: "Unable to contact server" }
+  }
+  const { success, data: res } = ServerVersionResponseSchema.safeParse(data.data)
+  if (!success) {
+    return { ok: false as const, message: "Invalid response from server" }
+  }
+
+  return { ok: true as const, ...res }
+}
+
 export const Api = {
   getApi,
   refresh,
@@ -253,7 +308,8 @@ export const Api = {
   logout,
   refreshUser,
   syncUp,
-  syncDown
+  syncDown,
+  getServerVersion
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

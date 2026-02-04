@@ -112,6 +112,7 @@ app.post("/", async (req, res) => {
       continue;
     }
     save.ownerId = auth.userId;
+    save.size = save.data.length;
     try {
       const res = await db.save.upsert({
         where: {
