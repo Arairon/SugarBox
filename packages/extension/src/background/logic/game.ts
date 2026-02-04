@@ -46,7 +46,7 @@ async function switchTo(game: GameObj | null) {
   state.game = game;
   state.char = null;
   // Fire an event
-  console.log(`Switched Game: `, game)
+  console.debug(`[SugarBox] Switched Game: `, game)
   await Char.handleGameSwitch()
 }
 

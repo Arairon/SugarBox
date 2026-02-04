@@ -5,10 +5,11 @@ import { createEmptyGameObject, type GameObj } from "@/shared/types";
 import { Input } from "@/shared/components/ui/input";
 import { Button } from "@/shared/components/ui/button";
 import { ArrowLeftIcon, ArrowRightIcon, EditIcon, PlusIcon, StepForwardIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu"
 import { toast } from "sonner";
+import { sendMessage } from "webext-bridge/popup";
 
 
 function GameLaunchButton({ game }: { game: GameObj }) {
@@ -50,7 +51,7 @@ function GameLaunchButton({ game }: { game: GameObj }) {
 function GamesListElement({ game, isCurrentGame }: { game: GameObj, isCurrentGame?: boolean }) {
   const { open: openEditor } = useGameEditorState()
   return (
-    <div className="flex items-center rounded-lg px-2 py-1 transition-colors hover:bg-foreground/10">
+    <div className={"flex items-center rounded-lg border-cyan-600 px-2 py-1 transition-colors hover:bg-foreground/10 " + (isCurrentGame ? "border-2" : "")}>
       {/*{game.shortname && <a className="mr-2 font-mono text-foreground/80">[{game.shortname}]</a>}*/}
       <a className="flex-1 font-mono">{game.name}</a>
       <Button variant="outline" className="rounded-r-none" onClick={() => openEditor(game)}>
@@ -59,7 +60,7 @@ function GamesListElement({ game, isCurrentGame }: { game: GameObj, isCurrentGam
       {
         isCurrentGame ? (
           <Button variant={"outline"} className="rounded-l-none" onClick={() => {
-            toast("You are already here!", {duration: 1500})
+            toast("You are already here!", { duration: 1500 })
           }}>
             <StepForwardIcon />
           </Button>
@@ -84,7 +85,7 @@ function GamesListEmptyPlaceholder() {
 
 export default function Games() {
   const pageSize = 4;
-  const { open: openEditor } = useGameEditorState()
+  const { open: openEditor, setDetectedGameName } = useGameEditorState()
   const [searchString, setSearchString] = useState("")
   const [pageNumber, setPageNumber] = useState(0)
   const { game } = useSugarBoxState();
@@ -97,6 +98,13 @@ export default function Games() {
   ) ?? []
 
   const pageCount = Math.ceil(gamesCount / pageSize)
+
+  useEffect(() => {
+    sendMessage("bg_get_game_name", undefined, "background").then(res => {
+      if (res) setDetectedGameName(res)
+      else setDetectedGameName("")
+    })
+  }, [setDetectedGameName])
 
   return (
     <main className='flex max-h-80 min-h-0 flex-1 flex-col items-stretch justify-start overflow-y-hidden px-2'>
@@ -112,7 +120,7 @@ export default function Games() {
         </Button>
       </div>
       <div className="min-h-0 flex-1">
-        <ScrollArea className="flex h-full flex-col items-stretch gap-1 pb-2">
+        <ScrollArea className="flex h-full flex-col items-stretch gap-1 divide-y divide-slate-600 pb-2">
           {game && <GamesListElement game={game} isCurrentGame />}
           {games.filter(i => i.id !== game?.id).map(game => <GamesListElement game={game} key={game.id} />)}
           {games.length === 0 && <GamesListEmptyPlaceholder />}

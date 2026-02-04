@@ -16,13 +16,15 @@ import { CharacterList } from "../components/CharacterList";
 
 function EditGeneral({ game }: { game: GameObj }) {
   const { game: currentGame, setPage } = useSugarBoxState();
-  const { setGame } = useGameEditorState();
+  const { setGame, detectedGameName } = useGameEditorState();
   const [isGamePage, setIsGamePage] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [currentPageUrl, setCurrentPageUrl] = useState("")
 
   useEffect(() => {
-    sendMessage("bg_is_page_a_game", undefined, "background").then(res => setIsGamePage(res))
+    sendMessage("bg_is_page_a_game", undefined, "background").then(res => {
+      setIsGamePage(res)
+    })
     getCurrentBrowserTab().then(tab => setCurrentPageUrl(tab.url ?? ""))
   }, [])
 
@@ -49,7 +51,7 @@ function EditGeneral({ game }: { game: GameObj }) {
     const newGame = Object.assign({}, game, { name })
     const res = await sendMessage("bg_game_edit", newGame)
     if (res.ok) {
-      toast("Edited successfully", { duration: 1000 })
+      toast("Edited successfully", { duration: 1500 })
       setGame(res.game)
       loadBackgroundState() // TODO: Replace with BG triggered updates
     } else {
@@ -121,7 +123,7 @@ function EditGeneral({ game }: { game: GameObj }) {
     <div className="flex min-h-0 flex-col items-stretch gap-2 p-2">
       <form onSubmit={submitName} className="flex">
         <Input className="rounded-r-none" id="name"
-          placeholder="Name" defaultValue={game.name} autoComplete="off" type="text" />
+          placeholder="Name" defaultValue={game.name || detectedGameName || ""} autoComplete="off" type="text" />
         <Button type="button" variant={"outline"} className={"rounded-none text-red-400 " + (game.id === -1 ? "hidden" : "")}
           onClick={() => setDeleteDialogOpen(true)}>
           <TrashIcon />
@@ -173,7 +175,7 @@ function EditGeneral({ game }: { game: GameObj }) {
           {
             game.paths.map((path, index) => (
               <div key={path.url} className={"bg-card/20 flex items-center gap-2 rounded-lg border px-2 py-1 " +
-                (currentPageUrl === path.url ? "border-green-400" : "border-border")}>
+                (currentPageUrl === path.url ? "border-cyan-600" : "border-border")}>
                 <div className="flex max-w-80 flex-1 flex-col truncate">
                   <a>{path.name}</a>
                   <a className="truncate text-sm text-ellipsis opacity-50">{path.url}</a>

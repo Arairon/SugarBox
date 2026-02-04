@@ -31,6 +31,9 @@ export async function isPageAGame() {
   }
 }
 
+export async function getGameName() {
+  return await sendCommand({ cmd: "get_story_name" })
+}
 
 const pageSaveSchema = z.object({
   passage: z.string().nonempty(),
@@ -54,9 +57,12 @@ export async function getPassageName() {
   return res
 }
 
-
 onMessage("bg_is_page_a_game", async () => {
   return await isPageAGame()
+})
+
+onMessage("bg_get_game_name", async () => {
+  return await getGameName() as null | string
 })
 
 // (globalThis as any).sendCommand = sendCommand

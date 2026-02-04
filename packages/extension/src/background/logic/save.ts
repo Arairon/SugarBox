@@ -98,7 +98,7 @@ onMessage("bg_save_new", async (msg) => {
     return { ok: false as const, message: "Invalid state, please refresh the page" }
   }
   if (!(await isPageAGame())) {
-    return { ok: false as const, message: "Unable to contact SugarCube backend" }
+    return { ok: false as const, message: "Unable to contact SugarCube backend. Please reload the page" }
   }
   const saveData = await getSave()
   if (!saveData || !saveData.data) {
@@ -180,7 +180,7 @@ onMessage("bg_save_load", async (msg) => {
     }
   }
   if (!(await isPageAGame())) {
-    return { ok: false as const, message: "Unable to contact SugarCube backend" }
+    return { ok: false as const, message: "Unable to contact SugarCube backend. Please reload the page" }
   }
 
   // TODO: Extra checks?

@@ -23,6 +23,7 @@ export const useSugarBoxState = create<SugarBoxState>()((set) => ({
   user: createEmptyUserObject(),
   game: null,
   char: null,
+  detectedGameName: "",
 
   setPage: (page) => set({ page }),
   setUser: (user) => set({ user }),
@@ -34,28 +35,31 @@ export const useSugarBoxState = create<SugarBoxState>()((set) => ({
 
 export async function loadBackgroundState() {
   const state = await sendMessage("bg_get_state", undefined, "background")
-  console.log("Received BG state:", state)
   useSugarBoxState.getState().set(state.user, state.game, state.char)
   const editorState = useSugarBoxState.getState()
   if (editorState.game && editorState.game.id === state.game?.id) {
     editorState.setGame(state.game)
   }
-  console.log(useSugarBoxState.getState())
 }
 
 interface GameEditorState {
   game: GameObj | null
   page: number
+  detectedGameName: string
+
   setGame: (game: GameObj | null) => void,
   setPage: (page: number) => void,
+  setDetectedGameName: (name: string) => void
   open: (game: GameObj, page?: number) => void,
 }
 
 export const useGameEditorState = create<GameEditorState>()((set) => ({
   game: null,
   page: 1,
+  detectedGameName: "",
   setGame: (game) => set({ game }),
   setPage: (page) => set({ page }),
+  setDetectedGameName: (name) => set({ detectedGameName: name }),
   open: (game, page = 1) => {
     useSugarBoxState.getState().setPage("gameEditor")
     set({ game, page })

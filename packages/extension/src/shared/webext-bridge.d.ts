@@ -11,6 +11,7 @@ declare module "webext-bridge" {
     bg_get_state: ProtocolWithReturn<undefined, SugarBoxState>
     bg_change_char: CharObj | null
     bg_is_page_a_game: ProtocolWithReturn<undefined, boolean>
+    bg_get_game_name: ProtocolWithReturn<undefined, string|null>
     bg_game_edit: ProtocolWithReturn<GameObj, ReturnObject<{ game: GameObj }>>
     bg_game_archive: ProtocolWithReturn<GameObj, ReturnObject<{ affectedChars: number, affectedSaves: number }>>
     bg_char_edit: ProtocolWithReturn<CharObj, ReturnObject<{ char: CharObj }>>

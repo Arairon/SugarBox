@@ -46,7 +46,7 @@ async function switchTo(char: CharObj | null) {
     saveLatestCharMap()
   }
   // TODO: Fire an event
-  console.log(`Switched Char: `, char)
+  console.debug(`[SugarBox] Switched Char: `, char)
 }
 
 onMessage("bg_change_char", ({ data }) => switchTo(data as CharObj | null))

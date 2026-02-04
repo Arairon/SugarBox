@@ -80,10 +80,11 @@ async function processRequest(req: SugarBoxPageRequest) {
   if (cmd === "check_sugarcube")
     return isObject(SugarCubeObject);
   if (!SugarCubeObject) return null;
+  if (cmd === "get_story_name") return SugarCubeObject.Story.title;
   if (cmd === "get_passage") return SugarCubeObject.State.passage;
   if (cmd === "save") return getSave();
   if (cmd === "load") return loadSave(req.args[0]);
-  console.log(`Invalid command: ${cmd satisfies never}`)
+  console.error(`Invalid command: ${cmd satisfies never}`)
 
 }
 
@@ -119,7 +120,7 @@ async function init(retries = 3) {
   }
   if (!SugarCubeObject) {
     window.dispatchEvent(new CustomEvent("SugarBox_Page_Init_Failed"))
-    console.log(`SugarBox Pagescript Failed to attach to ${document.title}@${document.location.host}`)
+    console.debug(`SugarBox Pagescript Failed to attach to ${document.title}@${document.location.host}`)
     return;
   }
 

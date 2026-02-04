@@ -65,7 +65,7 @@ export default function Trash() {
     <ScrollArea className="min-h-0 flex-1">
       <div className="flex flex-col items-stretch divide-y divide-slate-700">
         <div className="flex flex-col items-center justify-center border-b-2 border-cyan-700 p-2 pb-1 font-bold">
-          Trash
+          Recently deleted
         </div>
         {saves.map((save, index) => (
           <Fragment key={save.uuid + "-fragment"}>

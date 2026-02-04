@@ -167,6 +167,7 @@ export function createEmptyUserObject(): UserObj {
 export type SugarBoxPageCommand =
   | { cmd: "check_sugarcube" }
   // | { cmd: "reinit", args?: [number] } |
+  | { cmd: "get_story_name" }
   | { cmd: "get_passage" }
   | { cmd: "save" }
   | { cmd: "load", args: [string] }

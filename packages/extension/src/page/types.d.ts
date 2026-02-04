@@ -20,7 +20,8 @@ export type SugarCube = {
     }
   },
   Story: {
-    get: (title: string) => Passage
+    get: (title: string) => Passage,
+    title: string,
   },
   Engine: {
     show: () => HTMLElement
