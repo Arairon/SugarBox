@@ -14,7 +14,7 @@ export function SaveDetails({ save }: { save: SaveObj }) {
   return (
     <div className="flex flex-col items-stretch divide-y divide-slate-800 px-2 py-1 font-mono">
       <div className="flex items-start">
-        <div className="mr-4 flex flex-col">
+        <div className="mr-4 flex flex-1 flex-col">
           <a className="font-semibold">{save.name}</a>
           <p className="text-sm text-pretty text-foreground/70">{save.description}</p>
           <a className="text-foreground/70">Game version: {save.gameVersion}</a>
