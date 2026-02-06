@@ -40,6 +40,7 @@ export async function loadBackgroundState() {
   if (editorState.game && editorState.game.id === state.game?.id) {
     editorState.setGame(state.game)
   }
+  return state
 }
 
 interface GameEditorState {

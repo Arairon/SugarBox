@@ -36,7 +36,7 @@ async function handleTabSwitch(tabId: number) {
 async function handleUpdate() {
   if (!state.tabId) return
   const tab = await chrome.tabs.get(state.tabId)
-  if (!tab.id || !tab.url) return
+  if (!tab.id || !tab.url || !tab.active) return
   const game = urlToGameMap.get(tab.url)
   await switchTo(game ?? null)
 }

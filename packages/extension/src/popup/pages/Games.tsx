@@ -30,7 +30,7 @@ function GameLaunchButton({ game }: { game: GameObj }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent>
         {game.paths.map((path) =>
-          <DropdownMenuItem onClick={() => chrome.tabs.create({ url: path.url })}>
+          <DropdownMenuItem key={path.url} onClick={() => chrome.tabs.create({ url: path.url })}>
             {path.name ? (
               <>{path.name}</>
             ) : (

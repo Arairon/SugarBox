@@ -14,6 +14,7 @@ async function updateCurrentTab(tabId: number) {
     console.error(`Tab with no tabId`, tab)
     return
   }
+  if (!tab.active) return
   state.tabId = tab.id
   await Game.handleTabSwitch(tab.id)
 }
@@ -30,6 +31,6 @@ chrome.tabs.onActivated.addListener((activeInfo) =>
   updateCurrentTabDebounced(activeInfo.tabId)
 )
 
-chrome.tabs.onUpdated.addListener((tabId) =>
-  updateCurrentTabDebounced(tabId)
-)
+// chrome.tabs.onUpdated.addListener((tabId) =>
+//   updateCurrentTabDebounced(tabId)
+// )
