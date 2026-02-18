@@ -31,6 +31,10 @@ chrome.tabs.onActivated.addListener((activeInfo) =>
   updateCurrentTabDebounced(activeInfo.tabId)
 )
 
+onMessage("bg_update_current_page", ({data: tabId}) => {
+  return updateCurrentTab(tabId)
+})
+
 // chrome.tabs.onUpdated.addListener((tabId) =>
 //   updateCurrentTabDebounced(tabId)
 // )

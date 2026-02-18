@@ -2,6 +2,7 @@ import { createEmptyUserObject, type CharObj, type GameObj, type UserObj } from 
 import { create } from "zustand";
 import { nonActivityPages, pages } from "../pages/pagesIndex";
 import { sendMessage } from "webext-bridge/popup";
+import { getCurrentBrowserTab } from "@/shared/browser";
 
 type Page = (keyof typeof pages) | (keyof typeof nonActivityPages)
 
@@ -32,6 +33,11 @@ export const useSugarBoxState = create<SugarBoxState>()((set) => ({
   set: (user, game, char) => set({ user, game, char })
 }))
 
+export async function updateCurrentTabInBackground() {
+  const tab = await getCurrentBrowserTab();
+  if (tab.id)
+    return sendMessage("bg_update_current_page", tab.id);
+}
 
 export async function loadBackgroundState() {
   const state = await sendMessage("bg_get_state", undefined, "background")

@@ -4,13 +4,15 @@ import { Header } from './components/Header'
 import { Content } from './components/Content'
 import { Footer } from './components/Footer'
 import { useEffect } from 'react'
-import { loadBackgroundState } from './lib/state'
+import { loadBackgroundState, updateCurrentTabInBackground } from './lib/state'
 import { refreshUser, requestSync } from './lib/user'
 
 
 function App() {
   useEffect(() => {
-    loadBackgroundState()
+    updateCurrentTabInBackground().then(() => {
+      loadBackgroundState()
+    })
     refreshUser()
     requestSync()
   }, [])

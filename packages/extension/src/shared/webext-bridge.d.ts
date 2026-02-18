@@ -7,6 +7,7 @@ type ReturnObject<T = unknown> = ({ ok: true } & T) | { ok: false, message: stri
 
 declare module "webext-bridge" {
   export interface ProtocolMap {
+    bg_update_current_page: number
     bg_ping: ProtocolWithReturn<undefined, "pong">
     bg_get_state: ProtocolWithReturn<undefined, SugarBoxState>
     bg_change_char: CharObj | null
