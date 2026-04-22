@@ -1,0 +1,27 @@
+:root {
+  --popup-width: 400px;
+  --popup-height: 350px;
+}
+
+html {
+  width: var(--popup-width, 400px);
+  height: var(--popup-height, 400px);
+  max-height: var(--popup-height, 400px);
+  overflow: hidden;
+}
+
+body {
+  width: var(--popup-width, 400px);
+  max-width: var(--popup-width, 400px);
+  height: var(--popup-height, 400px);
+  max-height: var(--popup-height, 400px);
+  overflow: hidden;
+}
+
+button {
+  cursor: pointer;
+}
+
+.scroll-area-viewport-block > div {
+  display: block !important;
+}

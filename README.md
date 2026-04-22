@@ -29,7 +29,7 @@ If you **really** need to, you can log out from one account, delete the local da
 ## Firefox support
 
 > [!warning]
-> This extension does not support firefox based browsers.
+> This extension does not support firefox based browsers yet.
 
 As a chromium hater myself i am also sad about this, but there's not much i can do without rewriting a ton. First of all, there are a lot more security features and i am not quite ready to fight with firefox to allow my extension to communicate save data between a popup and a content script. Secondly, firefox popups try to close on the slightest click, so, for example, DB import from file will not work, since by the time you've selected the file, the popup is already gone.
 
@@ -61,15 +61,15 @@ services:
     ports:
       - 3000:3000
     volumes:
-      - ./db:/app/db 
+      - ./db:/app/db
       - ./log:/app/log # optional
     environment: # See .env.example in /server
       AUTH_SECRET: "" # A long, random string. Not optional
       LOG_LEVEL: info
       ACCESS_TOKEN_LIFESPAN: "5m" # Uses npm vercel/ms format. Should be relatively low.
       REFRESH_TOKEN_LIFESPAN: "60d" # How long can a user stay logged in for without opening the app
-      STORAGE_QUOTA_USER: 104857600 #100mb. Yes it's technically mib. Blame windows
-      STORAGE_QUOTA_ADMIN: 1073741824 #1gb
+      STORAGE_QUOTA_USER: 250000000 # 250mb
+      STORAGE_QUOTA_ADMIN: 1000000000 # 1gb
       REGISTERED_USERS_LIMITED: false # Makes newly registered users 'limited'
 ```
 
@@ -77,51 +77,43 @@ services:
 
 ### Prerequisites
 
-1. **Node.js**: Ensure you have Node.js installed. You can download it from [Node.js official website](https://nodejs.org/).
-2. **pnpm**: Install pnpm, the package manager used in this project. Run the following command to install it globally: `npm install -g pnpm`
-3. Clone the repo `git clone https://github.com/arairon/sugarbox`
+1. **Bun**: Ensure you have Bun installed. You can grab it from [Bun's website](https://bun.com).
+2. Clone the repo `git clone https://github.com/arairon/sugarbox`
 
 ### Extension
 
-1. Navigate to extension/popup/ `cd extension/popup`
-2. Install dependencies `pnpm i`
-3. Navigate back to the extension/ folder `cd ..`
-4. Run the build script `./extension-dist.sh` (or .bat)
-5. The extension is now located in the project's root's dist/ directory
+1. Navigate to the extension package `cd packages/extension`
+2. Install dependencies `bun i`
+3. Run the build script `bun run build`
+4. The extension is now located in dist/ directory
 
 #### Dev build
 
-If you just want the dev build, then all you need to do is:
-
-1. Navigate to extension/popup `cd extension/popup`
-2. Install dependencies `pnpm i`
-3. Run `pnpm dev` or `pnpm dev:live`
-4. Load the extension/manifest.json file in chrome
+If you just want the dev build, then all you need to do is run `bun dev` instead
 
 ### Server
 
-1. Navigate to server/ directory `cd server`
-2. Install dependencies `pnpm i`
-3. Run the server `pnpm dev`
-4. (optional) Build a container `docker build -t sugarbox-server .`
+1. Navigate to the server package `cd packages/server`
+2. Install dependencies `bun i`
+3. Run the server `bun dev`
+4. (optional) Build a container `bun run build:container`
 
 ## Interface
 
 ### Saves
 
+> [!note]
+> UI has changed a bit, so images somewhat outdated. Though they are close enough for now
+
 ![SaveSlotsImage](/docs/img/slots.png)
 
-These are saves for 'Character A' in game 'Degrees Of Ledity'.
+These are saves for 'Character A' in game 'Degrees Of Lewdity'.
 You can create as many slots as you want.
 
 ![ExtraSaveInfoImage](/docs/img/extrasaveinfo.png)
 
 You can also view extra info about a save and export it to a file, which is compatible with SugarCube's import system.
 There are also a few technical details if you want them.
-
-![SaveListImage](/docs/img/saveslist.png)
-
-You can also view all saves for a certain game, including the archived saves. And you can load them or restore them if you choose to do so.
 
 > [!note]
 > Since saves are mostly quite small in size and this extension lets you store as many as your file system allows,
