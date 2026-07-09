@@ -33,6 +33,7 @@ export function SaveDetails({ save }: { save: SaveObj }) {
           </div>
           <a className="mr-2">{save.remoteId !== -1 ? "synced" : "local"}</a>
           <a className="mr-2">{formatBytes(save.data.length)}</a>
+          <a className="mr-2">{save.hash.slice(0,8)}</a>
         </div>
       </div>
     </div>
