@@ -5,8 +5,8 @@ import z from "zod";
 
 export async function sendCommand(command: SugarBoxPageCommand) {
   const tab = await chrome.tabs.get(state.tabId);
-  if (!tab.id) return
-  return new Promise(function(resolve, reject) {
+  if (!tab.id) return;
+  return new Promise(function (resolve, reject) {
     if (!tab.id) {
       reject("Invalid tab");
       return;
@@ -24,15 +24,15 @@ export async function sendCommand(command: SugarBoxPageCommand) {
 
 export async function isPageAGame() {
   try {
-    const res = await sendCommand({ cmd: "check_sugarcube" })
-    return !!res
+    const res = await sendCommand({ cmd: "check_sugarcube" });
+    return !!res;
   } catch {
-    return false
+    return false;
   }
 }
 
 export async function getGameName() {
-  return await sendCommand({ cmd: "get_story_name" })
+  return (await sendCommand({ cmd: "get_story_name" })) as string | null;
 }
 
 const pageSaveSchema = z.object({
@@ -43,26 +43,26 @@ const pageSaveSchema = z.object({
 });
 
 export async function getSave(parse = true) {
-  const res = await sendCommand({ cmd: "save" }) as unknown | null
-  if (!res || !parse) return res as null
-  return pageSaveSchema.parse(res)
+  const res = (await sendCommand({ cmd: "save" })) as unknown | null;
+  if (!res || !parse) return res as null;
+  return pageSaveSchema.parse(res);
 }
 
 export function loadSave(save: string) {
-  return sendCommand({ cmd: "load", args: [save] })
+  return sendCommand({ cmd: "load", args: [save] });
 }
 
 export async function getPassageName() {
-  const res = await sendCommand({ cmd: "get_passage" }) as string | null
-  return res
+  const res = (await sendCommand({ cmd: "get_passage" })) as string | null;
+  return res;
 }
 
 onMessage("bg_is_page_a_game", async () => {
-  return await isPageAGame()
-})
+  return await isPageAGame();
+});
 
 onMessage("bg_get_game_name", async () => {
-  return await getGameName() as null | string
-})
+  return (await getGameName()) as null | string;
+});
 
 // (globalThis as any).sendCommand = sendCommand

@@ -20,7 +20,7 @@ export default function CharacterSelection() {
       <div className="flex flex-col items-center justify-center border-b-2 border-cyan-700 p-2 pb-1">
         Character Selection
       </div>
-      <CharacterList game={game} availableAction="select" basePageSize={4} />
+      <CharacterList game={game} availableAction="select" basePageSize={4} allowCreation />
     </main >
   )
 }

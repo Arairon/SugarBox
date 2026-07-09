@@ -1,10 +1,10 @@
 import { Button } from "@/shared/components/ui/button";
 import { loadBackgroundState, useGameEditorState, useSugarBoxState } from "../lib/state";
-import { type GameObj } from "@/shared/types";
+import { createEmptyCharObject, createEmptyGameObject, type GameObj } from "@/shared/types";
 import React, { Activity, useEffect, useState } from "react";
 import { Input } from "@/shared/components/ui/input";
 import { ScrollArea } from "@/shared/components/ui/scroll-area";
-import { PlusIcon, SaveIcon, TrashIcon, } from "lucide-react";
+import { CheckIcon, PlusIcon, SaveIcon, TrashIcon, } from "lucide-react";
 import { sendMessage } from "webext-bridge/popup";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/components/ui/tooltip";
 import { getCurrentBrowserTab } from "@/shared/browser";
@@ -15,8 +15,8 @@ import { CharacterList } from "../components/CharacterList";
 
 
 function EditGeneral({ game }: { game: GameObj }) {
-  const { game: currentGame, setPage } = useSugarBoxState();
-  const { setGame, detectedGameName } = useGameEditorState();
+  const { game: currentGame, setPage, detectedGameName } = useSugarBoxState();
+  const { setGame } = useGameEditorState();
   const [isGamePage, setIsGamePage] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [currentPageUrl, setCurrentPageUrl] = useState("")
@@ -210,6 +210,79 @@ function EditGeneral({ game }: { game: GameObj }) {
   )
 }
 
+function NewGamePage() {
+  const { setPage: setGlobalPage, detectedGameName } = useSugarBoxState();
+  const { game, setGame } = useGameEditorState();
+
+  useEffect(() => {
+    if (!game) {
+      setGame(createEmptyGameObject())
+    }
+  }, [game, setGame])
+
+  if (!game) return <a onClick={()=>setGlobalPage("home")}>This was not supposed to happen...</a>
+
+  async function onSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const elements = e.currentTarget.elements
+    const name = (elements as typeof elements & { name: { value: string } }).name.value.trim()
+    const charName = (elements as typeof elements & { charName: { value: string } }).charName.value.trim()
+  
+    if (!name) {
+      toast.error("Name cannot be empty", { duration: 1500 })
+      return
+    }
+    const games = await db.games.where("archived").equals(0).toArray()
+    for (const i of games) {
+      if (i.name === name) {
+        toast.error("Name already taken by another game", { duration: 1500 })
+        return;
+      }
+    }
+    const newGame = Object.assign({}, game, { name })
+    const res = await sendMessage("bg_game_edit", newGame)
+    if (res.ok) {
+      setGame(res.game)
+      if (charName) {
+        const newChar = createEmptyCharObject()
+        newChar.gameId = res.game.uuid
+        newChar.name = charName
+        newChar.slots = ["", "", ""]
+        const charRes = await sendMessage("bg_char_edit", newChar)
+        if (charRes.ok) {
+          await sendMessage("bg_change_char", charRes.char, "background")
+        } else {
+          toast.error(charRes.message, { duration: 2500 })
+        }
+      }
+      toast.success("New game created!", { duration: 1500 })
+      loadBackgroundState() // TODO: Replace with BG triggered updates
+      setTimeout(() => { setGlobalPage("home") }, 300)
+    } else {
+      toast.error(res.message, { duration: 2500 })
+    }
+
+  }
+
+  return (
+    <main className="flex flex-1 flex-col items-stretch">
+      <div className="text-base text-center border-b-2 p-2 pb-1 disabled:pointer-events-none disabled:opacity-50 border-cyan-500">
+        New Game
+      </div>
+      <form className="flex flex-col items-stretch p-2 gap-2" onSubmit={onSubmit}>
+        <Input id="name"
+          placeholder="Name" defaultValue={game.name || detectedGameName || ""} autoComplete="off" type="text" />
+
+        <Input id="charName"
+          placeholder="New character (optional)" autoComplete="off" type="text" />
+
+        <Button variant={"outline"}>
+          Submit <CheckIcon/>
+        </Button>
+      </form>
+    </main>
+  )
+}
 
 export default function GameEditor() {
   const { setPage: setGlobalPage } = useSugarBoxState();
@@ -225,6 +298,11 @@ export default function GameEditor() {
         </div>
       </main>
     )
+  }
+
+  const isNewGame = game.id === -1
+  if (isNewGame) {
+    return <NewGamePage/>
   }
 
   return (

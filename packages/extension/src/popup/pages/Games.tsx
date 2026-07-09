@@ -85,7 +85,8 @@ function GamesListEmptyPlaceholder() {
 
 export default function Games() {
   const pageSize = 4;
-  const { open: openEditor, setDetectedGameName } = useGameEditorState()
+  const { setDetectedGameName } = useSugarBoxState()
+  const { open: openEditor } = useGameEditorState()
   const [searchString, setSearchString] = useState("")
   const [pageNumber, setPageNumber] = useState(0)
   const { game } = useSugarBoxState();

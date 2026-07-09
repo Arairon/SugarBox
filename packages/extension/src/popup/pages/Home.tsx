@@ -1,18 +1,26 @@
 import { toast } from "sonner";
-import { useSugarBoxState } from "../lib/state";
+import { useGameEditorState, useSugarBoxState } from "../lib/state";
 import SaveSlots from "./Home/SaveSlots";
 import CharacterSelection from "./Home/CharacterSelection";
+import { useEffect } from "react";
+import { createEmptyGameObject } from "@/shared/types";
+import { db } from "../lib/db";
 
-export default function Home() {
-  const { game, char } = useSugarBoxState();
+function WelcomePage() {
+  const {game, detectedGameName} = useSugarBoxState();
+  const {open: openEditor} = useGameEditorState();
 
-  if (game) {
-    if (char) {
-      return <SaveSlots />
-    } else {
-      return <CharacterSelection />
+  useEffect(() => {
+    if (!game && detectedGameName) {
+      db.games.get({name: detectedGameName, archived: 0}).then((foundGame) => {
+        if (foundGame) {
+          openEditor(foundGame)
+        } else {
+          openEditor(createEmptyGameObject())
+        }
+      })
     }
-  }
+  }, [game, detectedGameName, openEditor]);
 
   return (
     <main className="flex flex-1 grow flex-col items-center justify-center gap-3 p-4">
@@ -35,4 +43,18 @@ export default function Home() {
       </p>
     </main>
   )
+}
+
+export default function Home() {
+  const { game, char } = useSugarBoxState();
+
+  if (game) {
+    if (char) {
+      return <SaveSlots />
+    } else {
+      return <CharacterSelection />
+    }
+  }
+
+  return <WelcomePage/>
 }

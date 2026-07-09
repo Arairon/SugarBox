@@ -38,7 +38,7 @@ function CurrentChar() {
       onValueChange={async (value) => {
         if (value == "-2") {
           if (game)
-            openGameEditor(game, 2)
+            openGameEditor(game, {page: 2})
           return;
         }
         let char = await db.chars.get(Number(value)) ?? null

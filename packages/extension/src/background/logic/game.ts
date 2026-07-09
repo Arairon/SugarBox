@@ -1,44 +1,65 @@
-import { GamePathSchema, GameSchema, type GameObj, type SaveObj } from "@/shared/types";
+import {
+  GamePathSchema,
+  GameSchema,
+  type GameObj,
+  type SaveObj,
+} from "@/shared/types";
 import { db } from "./db";
 import { state } from "./state";
 import { onMessage } from "webext-bridge/background";
 import { Char } from "./char";
 import z from "zod";
 import { Sync } from "./sync";
+import { getGameName } from "./page";
 
-const urlToGameMap = new Map<string, GameObj>()
+const urlToGameMap = new Map<string, GameObj>();
 
 async function rebuildUrlToGameMap() {
-  urlToGameMap.clear()
+  urlToGameMap.clear();
   await db.games
-    .where("archived").equals(0)
+    .where("archived")
+    .equals(0)
     .each((game: GameObj) => {
-      game.paths.map(path => {
-        if (path.url.startsWith("ERR"))
-          return;
+      game.paths.map((path) => {
+        if (path.url.startsWith("ERR")) return;
         if (urlToGameMap.has(path.url)) {
-          path.url = "ERR: Duped: " + path.url
-          return
+          path.url = "ERR: Duped: " + path.url;
+          return;
         }
-        urlToGameMap.set(path.url, game)
-      })
-    })
+        urlToGameMap.set(path.url, game);
+      });
+    });
 }
 
-rebuildUrlToGameMap()
+rebuildUrlToGameMap();
 
 async function handleTabSwitch(tabId: number) {
-  const tab = await chrome.tabs.get(tabId)
-  if (!tab.id || !tab.url) return
-  await handleUpdate()
+  const tab = await chrome.tabs.get(tabId);
+  if (!tab.id || !tab.url) return;
+  await handleUpdate();
 }
 
 async function handleUpdate() {
-  if (!state.tabId) return
-  const tab = await chrome.tabs.get(state.tabId)
-  if (!tab.id || !tab.url || !tab.active) return
-  const game = urlToGameMap.get(tab.url)
-  await switchTo(game ?? null)
+  if (!state.tabId) return;
+  const tab = await chrome.tabs.get(state.tabId);
+  if (!tab.id || !tab.url || !tab.active) return;
+  const gameByUrl = urlToGameMap.get(tab.url);
+  if (gameByUrl) return await switchTo(gameByUrl);
+  const detectedGameName = await getGameName();
+  if (!detectedGameName) return await switchTo(null);
+  const gameByName = await db.games.get({
+    name: detectedGameName,
+    archived: 0,
+  });
+  if (gameByName) {
+    console.log(
+      `[SugarBox] Detected game by name: ${detectedGameName}. Adding path`,
+    );
+    const path = { url: tab.url, name: null };
+    gameByName.paths.push(path);
+    await Game.commit(gameByName);
+  }
+  await switchTo(gameByName || null);
 }
 
 async function switchTo(game: GameObj | null) {
@@ -46,12 +67,12 @@ async function switchTo(game: GameObj | null) {
   state.game = game;
   state.char = null;
   // Fire an event
-  console.debug(`[SugarBox] Switched Game: `, game)
-  await Char.handleGameSwitch()
+  console.debug(`[SugarBox] Switched Game: `, game);
+  await Char.handleGameSwitch();
 }
 
 function validate(game: GameObj) {
-  return GameSchema.safeParse(game)
+  return GameSchema.safeParse(game);
 }
 
 export const GameUploadSchema = z.object({
@@ -65,7 +86,7 @@ export const GameUploadSchema = z.object({
   createdAt: z.coerce.date().default(() => new Date()),
 });
 
-export type GameUploadObject = z.infer<typeof GameUploadSchema>
+export type GameUploadObject = z.infer<typeof GameUploadSchema>;
 
 export const GameDownloadSchema = z
   .object({
@@ -84,39 +105,39 @@ export const GameDownloadSchema = z
   })
   .transform((g) => {
     g.remoteId = g.id;
-    g.id = -1
-    return g
+    g.id = -1;
+    return g;
   });
 
-export type GameDownloadObject = z.infer<typeof GameDownloadSchema>
+export type GameDownloadObject = z.infer<typeof GameDownloadSchema>;
 
 function prepareForUpload(game: GameObj) {
-  return GameUploadSchema.parse(game)
+  return GameUploadSchema.parse(game);
 }
 
 function parseDownloaded(game: unknown) {
-  return GameDownloadSchema.parse(game)
+  return GameDownloadSchema.parse(game);
 }
 
 async function commit(game: GameObj) {
-  game.updatedAt = Date.now()
+  game.updatedAt = Date.now();
   if (game.id === -1) {
-    game.id = await db.games.put(Object.assign(game, { id: undefined }))
+    game.id = await db.games.put(Object.assign(game, { id: undefined }));
   } else {
-    game.id = await db.games.put(game)
+    game.id = await db.games.put(game);
   }
-  await rebuildUrlToGameMap()
-  await handleUpdate()
-  Sync.scheduleSync()
-  return game
+  await rebuildUrlToGameMap();
+  await handleUpdate();
+  Sync.scheduleSync();
+  return game;
 }
 
 async function archive(game: GameObj) {
   if (game.archived) {
-    return { affectedChars: [], affectedSaves: [] }
+    return { affectedChars: [], affectedSaves: [] };
   }
-  game.archived = 1
-  game.archivedAt = Date.now()
+  game.archived = 1;
+  game.archivedAt = Date.now();
   const saves = [] as SaveObj[];
   const chars = await db.chars
     .where("gameId")
@@ -128,29 +149,30 @@ async function archive(game: GameObj) {
     await Char.commit(char);
     saves.push(...res.affectedSaves);
   }
-  await commit(game)
+  await commit(game);
   return {
     affectedChars: chars,
-    affectedSaves: saves
-  }
+    affectedSaves: saves,
+  };
 }
 
 async function restore(game: GameObj) {
-  game.archived = 0
-  game.archivedAt = 0
+  game.archived = 0;
+  game.archivedAt = 0;
 
-  const games = await db.games.where("archived").equals(0).toArray()
-  game.paths = game.paths.filter((path) => { // Filter already taken paths
+  const games = await db.games.where("archived").equals(0).toArray();
+  game.paths = game.paths.filter((path) => {
+    // Filter already taken paths
     for (const i of games) {
-      if (i.uuid === game.uuid) continue
-      if (i.paths.map(p => p.url).includes(path.url)) {
-        return false
+      if (i.uuid === game.uuid) continue;
+      if (i.paths.map((p) => p.url).includes(path.url)) {
+        return false;
       }
     }
-    return true
-  })
+    return true;
+  });
 
-  return commit(game)
+  return commit(game);
 }
 
 onMessage("bg_game_edit", async (msg) => {
@@ -158,32 +180,35 @@ onMessage("bg_game_edit", async (msg) => {
   if (!success) {
     return {
       ok: false as const,
-      message: error.message
-    }
+      message: error.message,
+    };
   }
   // TODO: Extra checks?
 
-  const result = await commit(game)
+  const result = await commit(game);
   if (!result) {
-    return { ok: false as const, message: "Failed for unknown reasons" }
+    return { ok: false as const, message: "Failed for unknown reasons" };
   }
-  return { ok: true as const, game: result }
-})
+  return { ok: true as const, game: result };
+});
 
 onMessage("bg_game_archive", async (msg) => {
   const { success, data: game, error } = validate(msg.data);
   if (!success) {
     return {
       ok: false as const,
-      message: error.message
-    }
+      message: error.message,
+    };
   }
   // TODO: Extra checks?
   const result = await archive(game);
-  await commit(game)
-  return { ok: true as const, affectedChars: result.affectedChars.length, affectedSaves: result.affectedSaves.length }
-})
-
+  await commit(game);
+  return {
+    ok: true as const,
+    affectedChars: result.affectedChars.length,
+    affectedSaves: result.affectedSaves.length,
+  };
+});
 
 export const Game = {
   rebuildUrlToGameMap,
@@ -195,4 +220,4 @@ export const Game = {
   restore,
   prepareForUpload,
   parseDownloaded,
-}
+};

@@ -142,6 +142,7 @@ function CharacterCardNew({ game }: { game: GameObj }) {
     const res = await sendMessage("bg_char_edit", char)
     if (res.ok) {
       toast("Created successfully", { duration: 1000 })
+      await sendMessage("bg_change_char", res.char, "background")
       loadBackgroundState() // TODO: Replace with BG triggered updates
     } else {
       toast.error(res.message, { duration: 2500 })
