@@ -57,9 +57,8 @@ async function handleUpdate() {
     );
     const path = { url: tab.url, name: null };
     gameByName.paths.push(path);
-    await Game.commit(gameByName);
+    await Game.commit(gameByName); // Handles switching to the game as well
   }
-  await switchTo(gameByName || null);
 }
 
 async function switchTo(game: GameObj | null) {
