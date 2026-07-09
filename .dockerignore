@@ -1,0 +1,3 @@
+packages/server/db
+packages/server/node_modules
+packages/extension/node_modules

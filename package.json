@@ -4,5 +4,8 @@
   "private": true,
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "scripts": {
+    "build:container:server": "docker build -t ghcr.io/arairon/sugarbox -f docker/server.Dockerfile ."
+  }
 }
